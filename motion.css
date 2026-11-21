@@ -1,0 +1,299 @@
+/* ==========================================================================
+   motion.css — animation, moods and transitions for the Azzah lawn.
+   Loops animate transform and opacity only. Colour moods are one-off
+   1.2s transitions driven by CSS variables.
+   ========================================================================== */
+
+/* ---------- metric-matched fallback so the Poppins swap doesn't shift layout */
+@font-face{font-family:"Poppins Fallback";src:local("Arial");size-adjust:112%;ascent-override:93%;descent-override:31%;line-gap-override:0%}
+body{font-family:Poppins,"Poppins Fallback",Arial,sans-serif}
+
+/* ==========================================================================
+   1. MOODS — Day / Golden hour / Night (set on <html data-mood="…">)
+   ========================================================================== */
+:root{
+  --mood-t:1.2s; --mood-ease:cubic-bezier(.45,0,.25,1);
+  --grass:#8DB33F; --shade:#5E8A2B; --dapple:#8DB33F; --tuft:#7DA236;
+  --page-bg:#E7EED3;
+  --cast:none; --sun-op:0; --night-op:0; --fly-op:0;
+}
+html[data-mood="golden"]{
+  --grass:#A6B03B; --shade:#6F6A25; --dapple:#B2B747; --tuft:#97A034;
+  --cast:skewX(-24deg) scale(1.2,1.04); --sun-op:1;
+}
+html[data-mood="night"]{
+  --grass:#2D5A4B; --shade:#1C3A57; --dapple:#356656; --tuft:#27503F;
+  --night-op:1; --fly-op:1;
+}
+html .lawn{--sx:3px;--sy:5px;--sc:rgba(40,66,14,.30);--rim:rgba(255,196,120,0);--rim-r:0px;--char-b:1;--leaf-b:1;--leaf-sc:rgba(30,50,10,.22)}
+html[data-mood="golden"] .lawn{--sx:17px;--sy:9px;--sc:rgba(120,70,12,.34);--char-b:1.03;--leaf-sc:rgba(110,64,10,.24)}
+html[data-mood="night"] .lawn{--sx:2px;--sy:3px;--sc:rgba(6,18,38,.5);--rim:rgba(255,196,120,.6);--rim-r:3px;--char-b:.82;--leaf-b:.55;--leaf-sc:rgba(4,14,30,.35)}
+
+html,body{background-color:var(--grass);transition:background-color var(--mood-t) var(--mood-ease)}
+.grass-fill{fill:var(--grass)}
+.shade-fill{fill:var(--shade)}
+.dapple-fill{fill:var(--dapple)}
+.tufts{stroke:var(--tuft)}
+.grass-fill,.shade-fill,.dapple-fill,.tufts{transition:fill var(--mood-t) var(--mood-ease),stroke var(--mood-t) var(--mood-ease)}
+
+/* long diagonal shadows in golden hour */
+.shadow-cast{transform-box:view-box;transform-origin:100% 100%;transform:var(--cast);transition:transform var(--mood-t) var(--mood-ease)}
+
+/* character shadow + warm night rim light + night dimming, all one filter list so it interpolates */
+.fig svg{
+  filter:drop-shadow(var(--sx) var(--sy) 0 var(--sc)) drop-shadow(0 0 var(--rim-r) var(--rim)) brightness(var(--char-b));
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),filter var(--mood-t) var(--mood-ease)}
+.canopy{filter:drop-shadow(10px 14px 6px var(--leaf-sc)) brightness(var(--leaf-b));transition:filter var(--mood-t) var(--mood-ease)}
+
+/* colour grade overlays: they fade, never snap */
+.sun,.night-tint{position:absolute;inset:0;pointer-events:none;z-index:26;transition:opacity var(--mood-t) var(--mood-ease)}
+.sun{background:radial-gradient(120% 95% at 0% 0%,rgba(255,186,96,.6),rgba(255,150,60,0) 62%),linear-gradient(rgba(255,170,70,.12),rgba(255,170,70,.12));mix-blend-mode:soft-light;opacity:var(--sun-op)}
+.night-tint{background:radial-gradient(130% 100% at 60% 30%,rgba(8,20,40,0) 45%,rgba(6,14,30,.5));opacity:var(--night-op)}
+
+/* fireflies */
+.fireflies{position:absolute;inset:0;pointer-events:none;z-index:27;opacity:var(--fly-op);transition:opacity var(--mood-t) var(--mood-ease)}
+.firefly{position:absolute;left:var(--fx);top:var(--fy);width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#FFF1B0;
+  box-shadow:0 0 6px 2px rgba(255,226,120,.8),0 0 18px 7px rgba(255,210,90,.3);
+  animation:flyDrift var(--fd) ease-in-out var(--fdel) infinite alternate,flyGlow var(--fg) ease-in-out var(--fdel) infinite alternate}
+html:not([data-mood="night"]) .firefly{animation-play-state:paused}
+@keyframes flyDrift{0%{transform:translate(0,0)}33%{transform:translate(var(--f1x),var(--f1y))}66%{transform:translate(var(--f2x),var(--f2y))}100%{transform:translate(var(--f3x),var(--f3y))}}
+@keyframes flyGlow{0%,35%{opacity:.12}100%{opacity:1}}
+
+/* sun / sunset / moon toggle */
+.mood-btn{position:relative}
+.top-right .mood-btn{width:44px;height:44px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#1F5BA0;cursor:pointer;box-shadow:0 2px 10px rgba(28,44,10,.12)}
+.top-right .mood-btn:hover{background:#F2F7FD}
+.mood-btn .mi{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;opacity:0;transform:rotate(-90deg) scale(.5);transition:opacity .45s ease,transform .6s cubic-bezier(.3,1.4,.5,1)}
+html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood="night"] .mi-night{opacity:1;transform:none}
+
+/* ==========================================================================
+   2. AMBIENT IDLE LOOPS (durations/delays are randomised per element in JS)
+   ========================================================================== */
+.breathe{transform-box:fill-box;transform-origin:center;animation:breathe 3.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+
+.sway-person{transform-box:fill-box;transform-origin:50% 50%;animation:swayPerson 5.2s ease-in-out infinite alternate}
+@keyframes swayPerson{from{transform:rotate(-1.5deg)}to{transform:rotate(1.5deg)}}
+
+/* beach ball rolls slowly in a small circle (centre = the ball's own origin) */
+.ball,.ball-spin{transform-box:view-box;transform-origin:0 0}
+.ball{animation:ballCircle 7s linear infinite}
+.ball-spin{animation:ballSpin 7s linear infinite}
+.ball-shadow{transform-box:fill-box;transform-origin:center;animation:ballCircle 7s linear infinite}
+@keyframes ballCircle{from{transform:rotate(0deg) translateX(7px) rotate(0deg)}to{transform:rotate(360deg) translateX(7px) rotate(-360deg)}}
+@keyframes ballSpin{to{transform:rotate(360deg)}}
+
+/* cat: lazy tail wag with a quick flick every few seconds */
+.tail{transform-box:fill-box;transform-origin:0% 0%;animation:tailIdle 4.6s ease-in-out infinite}
+@keyframes tailIdle{0%{transform:rotate(-6deg)}18%{transform:rotate(6deg)}36%{transform:rotate(-5deg)}54%{transform:rotate(4deg)}72%{transform:rotate(0deg)}
+  78%{transform:rotate(-26deg)}83%{transform:rotate(24deg)}88%{transform:rotate(-12deg)}100%{transform:rotate(-6deg)}}
+
+/* leaves sway in a breeze, each from its stem, staggered */
+.leaf{transform-box:fill-box;transform-origin:0% 50%;animation:leafSway 4.6s ease-in-out infinite alternate;animation-delay:calc(var(--i,0) * -0.41s)}
+@keyframes leafSway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+.sway-a,.sway-b{transform-box:fill-box;transform-origin:100% 0%;animation:branch 7s ease-in-out infinite alternate}
+.sway-b{animation-duration:9s;animation-delay:-3s}
+@keyframes branch{from{transform:rotate(-1deg)}to{transform:rotate(1.2deg)}}
+
+/* tree-shadow clusters drift 10–20px over ~12s and morph slightly as they slide past each other */
+.blob-cluster{transform-box:view-box;animation:blobDrift 12s ease-in-out infinite alternate}
+.bg--desktop .blob-cluster{transform-origin:1150px 700px}
+.bg--mobile .blob-cluster{transform-origin:280px 1150px}
+.blob-cluster.c0{--dx:-14px;--dy:8px;--s1:1.03;--s2:.98}
+.blob-cluster.c1{--dx:12px;--dy:-10px;--s1:.98;--s2:1.03;animation-duration:13s;animation-delay:-4s}
+.blob-cluster.c2{--dx:-18px;--dy:-6px;--s1:1.02;--s2:1.02;animation-duration:11s;animation-delay:-8s}
+@keyframes blobDrift{from{transform:translate(0,0) scale(1,1)}to{transform:translate(var(--dx),var(--dy)) scale(var(--s1),var(--s2))}}
+
+.plane{animation:glide 5s ease-in-out infinite alternate}
+@keyframes glide{from{transform:translate(0,0)}to{transform:translate(6px,-5px)}}
+
+/* living paper grain: an oversized noise layer that jumps between offsets */
+.grain{position:absolute;left:-50%;top:-50%;width:200%!important;height:200%!important;pointer-events:none;mix-blend-mode:soft-light;opacity:.6;z-index:46;
+  animation:grainShift 1.4s steps(1,end) infinite}
+@keyframes grainShift{0%{transform:translate(0,0)}12.5%{transform:translate(-3%,2%)}25%{transform:translate(2%,-4%)}37.5%{transform:translate(-4%,-1%)}
+  50%{transform:translate(3%,3%)}62.5%{transform:translate(-1%,4%)}75%{transform:translate(4%,-2%)}87.5%{transform:translate(-2%,-3%)}100%{transform:translate(0,0)}}
+
+/* ==========================================================================
+   3. HOVER / FOCUS — shared scale, lift, dim the rest, pause idle
+   ========================================================================== */
+.spot{transition:opacity .3s ease}
+.scene.has-active .spot:not(.is-active){opacity:.7}
+.spot.is-active .fig svg{transform:scale(1.06)}
+.fig::after{content:"";position:absolute;left:10%;right:10%;top:20%;bottom:8%;z-index:-1;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(18,34,6,.34),rgba(18,34,6,0));opacity:0;transform:scale(.9);
+  transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
+.spot.is-active .fig::after{opacity:1;transform:translate(10px,16px) scale(1.05)}
+.spot.is-active .breathe,.spot.is-active .sway-person,.spot.is-active .ball-spin,.spot.is-active .tail{animation-play-state:paused}
+
+.fig:focus-visible{outline:3px solid #fff;outline-offset:4px;box-shadow:0 0 0 10px rgba(16,30,6,.55)}
+
+/* popup card: JS positions it and springs it in; the arrow follows the chosen side */
+.card.is-placed{right:auto;bottom:auto;margin:0}
+.card::after{content:"";position:absolute;background:rgba(255,255,255,.86);display:none}
+.card[data-side]::after{display:block}
+.card[data-side="right"]::after{left:-8px;top:var(--ay,24px);width:8px;height:16px;margin-top:-8px;clip-path:polygon(100% 0,0 50%,100% 100%)}
+.card[data-side="left"]::after{right:-8px;top:var(--ay,24px);width:8px;height:16px;margin-top:-8px;clip-path:polygon(0 0,100% 50%,0 100%)}
+.card[data-side="top"]::after{bottom:-8px;left:var(--ax,24px);width:16px;height:8px;margin-left:-8px;clip-path:polygon(0 0,100% 0,50% 100%)}
+.card[data-side="bottom"]::after{top:-8px;left:var(--ax,24px);width:16px;height:8px;margin-left:-8px;clip-path:polygon(0 100%,50% 0,100% 100%)}
+.cb-icon{transition:transform .25s cubic-bezier(.3,1.6,.5,1),background-color .2s ease,color .2s ease}
+.cb-icon:hover,.cb-icon:focus-visible{transform:scale(1.15)}
+
+/* ==========================================================================
+   4. PER-CHARACTER HOVER REACTIONS (each loop < 1s)
+   ========================================================================== */
+/* guitar: strum + wiggle + floating notes */
+.guitar{transform-box:fill-box;transform-origin:50% 60%}
+.strum-arm{transform-box:fill-box;transform-origin:100% 0%}
+.note{opacity:0;transform-box:fill-box;transform-origin:50% 100%}
+.spot.is-active .guitar{animation:guitarWiggle .5s ease-in-out infinite}
+.spot.is-active .strum-arm{animation:strum .25s ease-in-out infinite alternate}
+.spot.is-active .note{animation:noteFloat .9s ease-out infinite}
+.spot.is-active .note.n2{animation-delay:.3s}
+.spot.is-active .note.n3{animation-delay:.6s}
+@keyframes guitarWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-5deg)}50%{transform:rotate(3deg)}75%{transform:rotate(-2deg)}}
+@keyframes strum{from{transform:rotate(-8deg)}to{transform:rotate(10deg)}}
+@keyframes noteFloat{0%{opacity:0;transform:translate(0,6px) scale(.6) rotate(-10deg)}20%{opacity:1}100%{opacity:0;transform:translate(10px,-34px) scale(1) rotate(12deg)}}
+
+/* reader: book tilts, a page flips */
+.book{transform-box:fill-box;transform-origin:50% 100%}
+.page-flip{transform-box:fill-box;transform-origin:0% 50%;opacity:0}
+.spot.is-active .book{animation:bookTilt .9s ease-in-out infinite}
+.spot.is-active .page-flip{animation:pageFlip .9s ease-in-out infinite}
+@keyframes bookTilt{0%,100%{transform:rotate(0)}50%{transform:rotate(-6deg)}}
+@keyframes pageFlip{0%{opacity:1;transform:scaleX(1)}45%{opacity:1;transform:scaleX(.05)}55%{opacity:1;transform:scaleX(-.05)}90%{opacity:1;transform:scaleX(-1)}100%{opacity:0;transform:scaleX(-1)}}
+
+/* sunhat: raises a hand and waves */
+.wave-arm{transform-box:fill-box;transform-origin:0% 0%}
+.spot.is-active .wave-arm{animation:waveHand .8s ease-in-out infinite}
+@keyframes waveHand{0%,100%{transform:rotate(-55deg)}50%{transform:rotate(-82deg)}}
+
+/* ball tosser: squash-and-stretch bounce */
+.spot.is-active .ball{transform-origin:0 17px;animation:ballBounce .8s cubic-bezier(.45,0,.55,1) infinite}
+.spot.is-active .ball-shadow{animation:ballShadow .8s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes ballBounce{0%,100%{transform:translateY(0) scale(1.18,.82)}12%{transform:translateY(-6px) scale(.9,1.12)}50%{transform:translateY(-26px) scale(1,1)}
+  88%{transform:translateY(-5px) scale(.92,1.1)}}
+@keyframes ballShadow{0%,100%{transform:scale(1.1);opacity:1}50%{transform:scale(.7);opacity:.45}}
+
+/* cat person: the cat lifts its head, a heart pops up */
+.cat-head{transform-box:fill-box;transform-origin:50% 100%}
+.heart{transform-box:fill-box;transform-origin:50% 100%;opacity:0}
+.spot.is-active .cat-head{animation:catLift .9s ease-in-out infinite}
+.spot.is-active .heart{animation:heartPop .9s ease-out infinite}
+@keyframes catLift{0%,100%{transform:translateY(-2px) scale(1.06)}50%{transform:translateY(-4px) scale(1.1) rotate(-6deg)}}
+@keyframes heartPop{0%{opacity:0;transform:translateY(6px) scale(.2)}30%{opacity:1;transform:translateY(0) scale(1.15)}60%{opacity:1;transform:translateY(-6px) scale(1)}100%{opacity:0;transform:translateY(-16px) scale(.9)}}
+
+/* picnic group: sway together */
+.spot[data-id="blog"] .sitter{transform-box:fill-box;transform-origin:50% 50%}
+.spot[data-id="blog"].is-active .sitter{animation:sitSway .9s ease-in-out infinite alternate}
+@keyframes sitSway{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+
+/* child: waves both arms */
+.wave{transform-box:fill-box;transform-origin:0% 100%}
+.wave-l{transform-box:fill-box;transform-origin:100% 0%}
+.spot.is-active .wave{animation:waveArm .45s ease-in-out infinite alternate}
+.spot.is-active .wave-l{animation:waveArmL .45s ease-in-out infinite alternate}
+@keyframes waveArm{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+@keyframes waveArmL{from{transform:rotate(20deg)}to{transform:rotate(-40deg)}}
+
+/* ==========================================================================
+   5. FIRST-VISIT ENTRANCE (JS plays it; these are the "before" states)
+   ========================================================================== */
+html.intro,html.intro body{background-color:#EEEADB}
+html.intro .grass-layer,html.intro .shadows-in,html.intro .canopy,html.intro .spot,
+html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
+
+/* ==========================================================================
+   6. LIST VIEW replaces the illustration
+   ========================================================================== */
+.lawn{transition:background-color .35s ease}
+.scene{transition:opacity .35s ease,visibility 0s linear 0s}
+.lawn.list-open{background-color:var(--page-bg)}
+.lawn.list-open .scene,.lawn.list-open .sun,.lawn.list-open .night-tint{opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
+.lawn.list-open .list{left:50%;top:120px;transform:translateX(-50%);width:min(560px,calc(100% - 32px));max-height:calc(100% - 220px)}
+.list:not([hidden]){animation:panelIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes panelIn{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+
+/* ==========================================================================
+   7. CONTRAST — backing pills keep text over grass at WCAG AA in every mood
+   ========================================================================== */
+.logo,.nav a,.bl,.tagline,.m-hint{background:rgba(16,30,6,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-shadow:none;border-radius:999px}
+.logo{justify-content:center;padding:0 14px}
+.nav a{padding:0 16px;opacity:1}
+.nav{gap:12px}
+.bl{padding:0 18px;color:#fff}
+.tagline{padding:8px 14px;margin:0}
+.m-hint{padding:6px 12px}
+
+/* ==========================================================================
+   8. INNER PAGES + zoom transition layers
+   ========================================================================== */
+.wash{position:absolute;inset:0;z-index:44;pointer-events:none;background:var(--page-bg);opacity:0}
+.page-layer{position:fixed;inset:0;z-index:45;overflow:auto;overscroll-behavior:contain;background:var(--page-bg);color:#16210D}
+.page-shell{max-width:880px;margin:0 auto;padding:24px 32px 96px}
+.page-head{position:relative;display:flex;align-items:center;justify-content:space-between;height:96px;border-bottom:1px solid rgba(22,33,13,.1)}
+.back{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px 0 14px;border-radius:999px;background:#fff;color:#16210D;text-decoration:none;font-size:14px;font-weight:500;box-shadow:0 2px 10px rgba(28,44,10,.1)}
+.back svg{transition:transform .25s ease}
+.back:hover svg{transform:translateX(-3px)}
+.mascot{position:absolute;right:4px;bottom:0;width:120px;height:92px;overflow:hidden;pointer-events:none}
+.mascot svg{position:absolute;left:-34px;top:-44px;width:170px;height:auto;transform-origin:50% 80%;animation:peek 4.5s ease-in-out infinite}
+.mascot .wave{animation:waveArm .6s ease-in-out infinite alternate}
+@keyframes peek{0%,100%{transform:translateY(44px) rotate(-6deg)}30%,70%{transform:translateY(0) rotate(3deg)}}
+.page-main{outline:none}
+.pg-kicker{display:flex;align-items:center;gap:8px;margin:40px 0 10px;font-size:13px;font-weight:500;letter-spacing:.02em;color:#3B5420}
+.pg-kicker span{width:10px;height:10px;border-radius:50%}
+.pg-title{margin:0 0 16px;font-size:clamp(34px,5vw,56px);line-height:1.05;font-weight:600;letter-spacing:-.02em}
+.pg-intro{max-width:60ch;margin:0 0 44px;font-size:17px;line-height:1.6;color:#33402A}
+.pg-section{margin:0 0 44px}
+.pg-section h2{margin:0 0 14px;font-size:20px;font-weight:600}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin:0;padding:0;list-style:none}
+.pg-card{padding:16px;border-radius:14px;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9)}
+.pg-card h3{margin:0 0 6px;font-size:16px;font-weight:600}
+.pg-card p{margin:0;font-size:14px;line-height:1.5;color:#4A5A3A}
+.pg-thumb{position:relative;aspect-ratio:16/10;margin:0 0 12px;border-radius:10px;overflow:hidden}
+.pg-thumb::after{content:"";position:absolute;width:55%;height:70%;right:-12%;bottom:-20%;border-radius:50%;background:rgba(255,255,255,.4)}
+.pg-list{margin:0;padding:0;list-style:none;border-top:1px solid rgba(22,33,13,.12)}
+.pg-list li{display:flex;flex-direction:column;gap:2px;padding:16px 0;border-bottom:1px solid rgba(22,33,13,.12);font-size:15px}
+.pg-list small{font-size:13px;color:#55634A}
+.pg-links{display:flex;flex-wrap:wrap;gap:10px}
+.pg-links a{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:999px;background:#fff;color:#16210D;text-decoration:none;font-size:14px;font-weight:500;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.pg-links a:hover{transform:translateY(-2px)}
+
+/* ==========================================================================
+   9. MOBILE ADDITIONS (<768px): menu icon nav, list view
+   ========================================================================== */
+@media (max-width:767.98px){
+  .sun,.night-tint,.grain{position:fixed}
+  .lawn{overflow-x:clip}
+  .lawn.list-open .scene{display:none}
+  .lawn.list-open{min-height:100vh}
+  .lawn.list-open .list{left:12px;right:12px;top:76px;transform:none;width:auto}
+  .lawn.nav-open .nav{display:flex;flex-direction:column;gap:4px;position:fixed;top:72px;right:12px;z-index:55;padding:8px;border-radius:16px;
+    background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 18px 40px rgba(28,44,10,.25);animation:panelIn .25s cubic-bezier(.2,.8,.2,1)}
+  .lawn.nav-open .nav a{min-width:160px;padding:0 16px;border-radius:10px;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:#16210D}
+  .lawn.nav-open .nav a:hover{background:rgba(22,33,13,.06)}
+  .page-shell{padding:16px 20px 80px}
+  .page-head{height:80px}
+}
+
+/* ==========================================================================
+   10. PAUSING (tab hidden, lawn off-screen or behind an inner page)
+   ========================================================================== */
+.lawn.is-paused .scene *,.lawn.is-paused .scene *::after,.lawn.is-paused .grain{animation-play-state:paused!important}
+html.is-hidden *,html.is-hidden *::after{animation-play-state:paused!important}
+
+/* ==========================================================================
+   11. REDUCED MOTION — no loops, no transform transitions, simple fades only
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce){
+  .scene *,.scene *::after,.grain,.mascot svg,.mascot .wave,.list:not([hidden]),.lawn.nav-open .nav{animation:none!important}
+  .fig svg,.fig::after,.shadow-cast,.mood-btn .mi,.cb-icon,.pg-links a,.back svg{transition-property:opacity,filter!important}
+  .spot.is-active .fig svg{transform:none}
+  .spot.is-active .fig::after{transform:none}
+  .cb-icon:hover,.cb-icon:focus-visible,.pg-links a:hover{transform:none}
+  .mood-btn .mi{transform:none!important}
+  .grain{transform:none}
+}
+
+/* zoom + page states */
+html.zooming .lawn{overflow:hidden}
+html.page-open,html.page-open body{overflow:hidden}

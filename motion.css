@@ -166,6 +166,10 @@ html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood
 .wave-arm{transform-box:fill-box;transform-origin:0% 0%}
 .spot.is-active .wave-arm{animation:waveHand .8s ease-in-out infinite}
 @keyframes waveHand{0%,100%{transform:rotate(-55deg)}50%{transform:rotate(-82deg)}}
+/* illustrated sunhat: leaning back on both hands, she tips her hat instead (same .8s rhythm) */
+.hat-tip{transform-box:fill-box;transform-origin:50% 50%}
+.spot.is-active .hat-tip{animation:hatTip .8s ease-in-out infinite}
+@keyframes hatTip{0%,100%{transform:scale(1.02)}50%{transform:translate(-1px,-2px) rotate(-9deg) scale(1.06)}}
 
 /* ball tosser: squash-and-stretch bounce */
 .spot.is-active .ball{transform-origin:0 17px;animation:ballBounce .8s cubic-bezier(.45,0,.55,1) infinite}

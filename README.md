@@ -3,7 +3,8 @@
 A plain HTML/CSS/JS site with no build step. Open `index.html`, or upload the folder to any static host (GitHub Pages, Netlify, Vercel).
 
 ```
-index.html            markup and the inline-SVG characters, plus favicon and Open Graph tags
+index.html            markup and the characters, plus favicon and Open Graph tags
+characters/           illustrated character art (WebP layers: base + the parts that move) and the About avatar
 styles.css            layout (unchanged apart from the mobile breakpoint, now 768px)
 motion.css            all animation: moods, idle loops, hover reactions, entrance, transitions, reduced motion
 script.js             motion and interaction: zoom page transitions, spring popups, entrance, moods, cursor, sound
@@ -43,7 +44,7 @@ To see the first-visit entrance again, close the tab and open a new one; it play
 | Page title and description | `index.html`, in `<head>` | Edit `<title>`, `<meta name="description">`, `og:title` and `og:description`. |
 | Share image (optional) | `og-image.jpg` | Replace it with your own 1200 × 630 image, keeping the same file name. |
 | Favicon (optional) | `favicon.svg`, `apple-touch-icon.png` | Replace them, keeping the file names. The touch icon should be 180 × 180. |
-| Your photo (optional) | `index.html`, About card | Swap `<span class="cb-avatar" aria-hidden="true">A</span>` for `<img class="cb-avatar" src="me.jpg" alt="Azzah" style="object-fit:cover">` and add `me.jpg` to the folder. |
+| Your photo (optional) | `characters/azzah.jpg` | The About card shows this portrait. Replace it with your own square photo, keeping the file name. |
 
 Keep all the files together in one folder; they reference each other by name.
 
@@ -87,10 +88,11 @@ The site is static, so there is nothing to build and any static host works.
 - **Hover reactions:**
   - Guitar person: strums, with floating notes.
   - Reader: the book tilts and a page flips.
-  - Sunhat: waves.
+  - Sunhat: tips her hat.
   - Ball: squash-and-stretch bounce.
-  - Cat: lifts its head and a heart pops up.
-  - Picnic group: sways together.
+  - Cat (on the Writing picnic): lifts its head and a heart pops up.
+  - Picnic: she sways.
+  - Notebook sketcher (Hobbies): a heart pops up.
   - Child: waves both arms.
 - **Click a person:** the lawn zooms about 3× into them and fades to a soft green, then the inner page slides up (about 700ms). "Back to the lawn", the browser's back button or Esc reverses it. Pages live at `#/projects`, `#/papers` and so on, so they can be linked and bookmarked.
 - **Sun/moon button (top right):** cycles Day → Golden hour → Night over 1.2s. Golden hour brings warm grass and long diagonal orange-tinted shadows. Night brings teal grass, blue shadows, fireflies and a warm rim light on the characters. The choice is saved; first-time visitors get the mood that matches their local time of day.

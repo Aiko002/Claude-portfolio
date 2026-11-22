@@ -23,7 +23,8 @@
   const mascot = $('.mascot');
   const announcer = $('#announcer');
 
-  const mqMobile = window.matchMedia('(max-width: 767.98px)');
+  // phones held upright get the tall scrolling lawn (keep in sync with the phone block in styles.css)
+  const mqMobile = window.matchMedia('(max-width: 599.98px) and (orientation: portrait)');
   const mqFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const isMobile = () => mqMobile.matches;
@@ -325,7 +326,22 @@
     if (spot && !isMobile()) activate(spot);
     else scheduleClose();
   });
-  root.addEventListener('pointerleave', scheduleClose);
+  root.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') scheduleClose(); });   // a lifted finger 'leaves' too
+
+  // Touch screens have no hover, so tapping someone without a link plays their hover reaction for a moment.
+  let tapTimer = 0;
+  spots.forEach((spot) => {
+    const fig = figOf(spot);
+    if (fig.matches('a')) return;
+    fig.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse') return;
+      activate(spot);
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { if (activeSpot === spot) deactivate(spot); }, 1800);
+    });
+  });
+  // iOS Safari only applies :active (the little press feedback) when a touch listener exists
+  document.addEventListener('touchstart', () => {}, { passive: true });
 
   // Keyboard focus opens the bubble too; touch/mouse focus does not.
   document.addEventListener('focusin', (e) => {
@@ -586,6 +602,7 @@
 
     const scaleNow = held.length && motion ? 3 : 1;
     const base = baseTransform();             // also cancels the held scene animation
+    if (spot) scene.style.transformOrigin = zoomOrigin(spot);   // re-aim, in case the screen was resized or rotated meanwhile
     scene.style.willChange = 'transform';
     const anims = [
       pageLayer.animate(motion ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(24px)' }] : [{ opacity: 1 }, { opacity: 0 }],

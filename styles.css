@@ -2,6 +2,7 @@
    Palette: grass #8DB33F, shade #5E8A2B, mustard #E3B23C, coral #E2604B, teal #2E8C8A, denim #3F5F8C */
 
 *,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{margin:0;background:#8DB33F}
 body{font-family:Poppins,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
 [hidden]{display:none!important}
@@ -9,22 +10,64 @@ body{font-family:Poppins,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothin
 .skip{position:absolute;left:12px;top:-60px;z-index:2000;background:#fff;color:#16210D;padding:10px 16px;border-radius:999px;font-size:13px;text-decoration:none}
 .skip:focus{top:12px}
 
-/* ---------- lawn & scene (desktop: one full-bleed 1440x900 illustration that covers the viewport) */
+/* ---------- lawn & scene
+   Three layouts, chosen by screen shape:
+     - landscape screens (laptops, PCs, iPads and phones held sideways): the 1440×900 lawn
+     - portrait tablets (iPad upright, Android tablets): the same people re-arranged on a 900×1200 lawn (--tx/--ty/--tw)
+     - phones held upright: a tall scrolling lawn (--mx/--my/--mw, see the phone block further down)
+   In the first two, the grass always fills the screen, and the people are drawn at the largest size where
+   everyone and every speech bubble fits below the top bar. On ordinary laptop and PC screens that is exactly
+   the original full-bleed lawn. All of this is plain CSS, so it adapts instantly on resize and rotation.
+   --k is the scale (screen px per design px). Everything below is in design px unless it says px. */
 .lawn{
   --sx:3px;--sy:5px;--sc:rgba(40,66,14,.30);
   --ink:#fff;--ink-shadow:0 1px 2px rgba(25,45,8,.55);
+  --W:100vw;--H:100vh;
+  /* landscape lawn: frame size, the box around all people, and the furthest-out speech-bubble tails */
+  --fw:1440;--fh:900;--px0:110;--px1:1300;--py0:150;--py1:770;--tip-x0:160;--tip-x1:1190;--tip-y:200;
+  --bg-x:.5;--canopy:1;
+  /* breathing room (px): sides, below the top bar, above the bottom; iPhone notch/home-bar areas included */
+  --safe-x:max(env(safe-area-inset-left,0px),env(safe-area-inset-right,0px));
+  --pad-x:calc(24px + var(--safe-x));--pad-top:calc(96px + env(safe-area-inset-top,0px));--pad-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  /* speech bubbles grow a little on big screens; their size (px) is reserved so they never hit an edge */
+  --bub-font:clamp(12px,min(.9vw,1.45vh),17px);--bub-h:calc(var(--bub-font) * 3.4);--bub-half:calc(var(--bub-font) * 4.8);
   position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;color:var(--ink)}
+@supports (height:100dvh){.lawn{--H:100dvh}}
 .lawn.is-golden{--sx:15px;--sy:8px;--sc:rgba(56,44,8,.34)}
 @media (prefers-contrast: more){.lawn{--ink:#13200A;--ink-shadow:none}}
-.scene{position:absolute;left:50%;top:50%;width:max(100%,160vh);aspect-ratio:1440/900;transform:translate(-50%,-50%);margin:0}
+.scene{
+  --cover:max(var(--W) / var(--fw), var(--H) / var(--fh));
+  --fit-x:min((var(--W) - 2 * var(--pad-x)) / (var(--px1) - var(--px0)),
+              (var(--W) - 2 * var(--pad-x) - var(--bub-half)) / (var(--px1) - var(--tip-x0)),
+              (var(--W) - 2 * var(--pad-x) - var(--bub-half)) / (var(--tip-x1) - var(--px0)));
+  --fit-y:min((var(--H) - var(--pad-top) - var(--pad-bottom)) / (var(--py1) - var(--py0)),
+              (var(--H) - var(--pad-top) - var(--pad-bottom) - var(--bub-h)) / (var(--py1) - var(--tip-y)));
+  --k:min(var(--cover), var(--fit-x), var(--fit-y));
+  /* centred like the original, nudged only as far as needed to keep everyone on screen */
+  --L:clamp(max(var(--pad-x) - var(--k) * var(--px0), var(--pad-x) + var(--bub-half) - var(--k) * var(--tip-x0)),
+            (var(--W) - var(--k) * var(--fw)) / 2,
+            min(var(--W) - var(--pad-x) - var(--k) * var(--px1), var(--W) - var(--pad-x) - var(--bub-half) - var(--k) * var(--tip-x1)));
+  --T:clamp(max(var(--pad-top) - var(--k) * var(--py0), var(--pad-top) + var(--bub-h) - var(--k) * var(--tip-y)),
+            (var(--H) - var(--k) * var(--fh)) / 2,
+            var(--H) - var(--pad-bottom) - var(--k) * var(--py1));
+  position:absolute;left:var(--L);top:var(--T);width:calc(var(--k) * var(--fw));height:calc(var(--k) * var(--fh));margin:0}
 .bg,.canopy{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* grass + tree shadow: always covers the whole screen (kept at its own 16:10 shape, never stretched) */
+.bg--desktop{--bgw:max(var(--W),var(--H) * 1.6);--bgh:max(var(--H),var(--W) / 1.6);
+  right:auto;bottom:auto;width:var(--bgw);height:var(--bgh);
+  left:calc((var(--W) - var(--bgw)) * var(--bg-x) - var(--L));top:calc((var(--H) - var(--bgh)) / 2 - var(--T))}
+/* tree leaves: pinned to the top-right corner of the screen, sized with the people */
+.canopy--desktop{right:auto;bottom:auto;width:calc(var(--k) * var(--canopy) * 1440);height:calc(var(--k) * var(--canopy) * 900);
+  left:calc(var(--W) - var(--L) - var(--k) * var(--canopy) * 1440);top:calc(0px - var(--T))}
+/* night fireflies drift over the whole screen too */
+.scene > .fireflies{right:auto;bottom:auto;left:calc(0px - var(--L));top:calc(0px - var(--T));width:var(--W);height:var(--H)}
 .bg--mobile,.canopy--mobile,.m-hint,.m-actions{display:none}
 .canopy{pointer-events:none;z-index:25;filter:drop-shadow(10px 14px 6px rgba(30,50,10,.22))}
 
 /* ---------- hotspots */
 .spot{position:absolute;left:var(--x);top:var(--y);width:var(--w);z-index:10;pointer-events:none}
 .spot.is-active,.spot.is-open{z-index:30}
-.fig{position:relative;display:block;width:100%;padding:0;margin:0;border:0;background:none;border-radius:24px;pointer-events:none;font:inherit;color:inherit;cursor:pointer}
+.fig{position:relative;display:block;width:100%;padding:0;margin:0;border:0;background:none;border-radius:24px;pointer-events:none;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .fig > svg{display:block;width:100%;height:auto;overflow:visible;pointer-events:none;transform-origin:50% 50%;
   filter:drop-shadow(var(--sx) var(--sy) 0 var(--sc));transition:transform .4s cubic-bezier(.2,.8,.2,1),filter 1s ease}
 .fig .hit{pointer-events:all;cursor:pointer}
@@ -33,26 +76,30 @@ div.fig,div.fig .hit{cursor:default}   /* people without a link: hover only */
 
 /* ---------- speech bubbles over the four social people (frosted glass).
    --bx / --by (set on each bubble in index.html) = where the tail points, as a % of that person's drawing */
-.bubble{position:absolute;left:var(--bx);top:var(--by);z-index:2;translate:-50% calc(-100% - 9px);transform-origin:50% calc(100% + 9px);
-  display:inline-flex;align-items:center;gap:7px;padding:9px 14px 9px 12px;border-radius:14px;white-space:nowrap;
+.bubble{position:absolute;left:var(--bx);top:var(--by);z-index:2;translate:-50% calc(-100% - .7em);transform-origin:50% calc(100% + .7em);
+  display:inline-flex;align-items:center;gap:.54em;padding:.7em 1.08em .7em .92em;border-radius:1.08em;white-space:nowrap;font-size:var(--bub-font);
   background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);
   box-shadow:0 10px 26px rgba(28,44,10,.22),0 2px 6px rgba(28,44,10,.08);
-  color:#16210D;font-size:13px;font-weight:500;line-height:1;
+  color:#16210D;font-weight:500;line-height:1;
   opacity:0;visibility:hidden;pointer-events:none}
-.bubble svg{flex:none}
-.bubble::after{content:"";position:absolute;left:50%;top:100%;width:16px;height:9px;margin-left:-8px;background:rgba(255,255,255,.9);clip-path:polygon(0 0,100% 0,50% 100%)}
+.bubble svg{flex:none;width:1.23em;height:1.23em}
+.bubble::after{content:"";position:absolute;left:50%;top:100%;width:1.23em;height:.7em;margin-left:-.615em;background:rgba(255,255,255,.9);clip-path:polygon(0 0,100% 0,50% 100%)}
 .spot.is-open .bubble{opacity:1;visibility:visible;pointer-events:auto}
 /* no hover on touch screens, so the bubbles simply stay up there */
-@media (max-width: 767.98px), (hover: none){.bubble{opacity:1;visibility:visible;pointer-events:auto}}
+@media (max-width: 599.98px) and (orientation: portrait), (hover: none){
+  .bubble{opacity:1;visibility:visible;pointer-events:auto}
+  .spot:has(.bubble){z-index:26}   /* keep the always-on bubbles above the tree leaves */
+}
 
 /* ---------- chrome */
-.top{position:absolute;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;gap:96px;padding:30px 48px}
+.top{position:absolute;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;gap:96px;
+  padding:calc(30px + env(safe-area-inset-top,0px)) calc(48px + env(safe-area-inset-right,0px)) 30px calc(48px + env(safe-area-inset-left,0px))}
 .logo{font-size:26px;font-weight:600;letter-spacing:-.02em;color:var(--ink);text-shadow:var(--ink-shadow);text-decoration:none;min-width:44px;min-height:44px;display:inline-flex;align-items:center}
 .nav{display:flex;gap:56px;list-style:none;margin:0;padding:0}
 .nav a{font-size:14px;font-weight:300;letter-spacing:.01em;color:var(--ink);text-shadow:var(--ink-shadow);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;opacity:.92}
 .nav a:hover,.nav a[aria-current]{opacity:1;text-decoration:underline;text-underline-offset:6px;text-decoration-thickness:1px}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:14px}
-.bottom{position:absolute;left:48px;right:48px;bottom:24px;z-index:40;display:flex;align-items:center;justify-content:flex-end;gap:24px}
+.bottom{position:absolute;left:48px;right:calc(48px + env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;align-items:center;justify-content:flex-end;gap:24px}
 .br{display:flex;align-items:center;gap:14px}
 .seg{display:flex;padding:3px;gap:2px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .seg button{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border:0;border-radius:999px;background:none;font:inherit;font-size:12px;font-weight:500;color:var(--ink);cursor:pointer}
@@ -82,23 +129,45 @@ html.has-cursor,html.has-cursor *{cursor:none!important}
 html.has-cursor input{cursor:text!important}
 @media (hover: none), (pointer: coarse){.cursor{display:none!important}}
 
-/* ---------- mobile: a scrollable vertical lawn, tappable social people */
-@media (max-width: 767.98px){
+/* ---------- portrait tablets (iPad upright, Android tablets, squarish windows): the 900×1200 arrangement */
+@media (max-aspect-ratio: 13/10) and (min-width: 600px), (max-aspect-ratio: 13/10) and (orientation: landscape){
+  .lawn{--fw:900;--fh:1200;--px0:40;--px1:840;--py0:165;--py1:1100;--tip-x0:200;--tip-x1:770;--tip-y:251;--bg-x:.62;--canopy:.8}
+  .spot{left:var(--tx);top:var(--ty);width:var(--tw)}
+}
+
+/* ---------- smaller screens: tighter top bar */
+@media (max-width: 759.98px){
+  .lawn{--pad-x:calc(16px + var(--safe-x));--pad-top:calc(84px + env(safe-area-inset-top,0px))}
+  .top{gap:24px;padding:calc(20px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-right,0px)) 20px calc(20px + env(safe-area-inset-left,0px))}
+  .bottom{left:16px;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+}
+/* short screens (phones held sideways, small laptop windows) */
+@media (max-height: 519.98px){
+  .lawn{--pad-top:calc(64px + env(safe-area-inset-top,0px));--pad-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  .top{padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:10px}
+  .bottom{bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+}
+
+/* ---------- phones held upright: a scrollable vertical lawn, tappable social people */
+@media (max-width: 599.98px) and (orientation: portrait){
   .lawn{height:auto;min-height:100vh;overflow:visible}
-  .scene{position:relative;left:auto;top:auto;transform:none;width:100%;max-width:560px;margin:0 auto;aspect-ratio:390/1400}
+  .scene{position:relative;left:auto;top:auto;width:100%;height:auto;margin:0 auto;aspect-ratio:390/1400}
   .bg--desktop,.canopy--desktop,.nav,.top-right,.seg{display:none}
   .bg--mobile,.canopy--mobile{display:block}
+  .scene > .fireflies{left:0;top:0;width:100%;height:100%}
   .spot{left:var(--mx);top:var(--my);width:var(--mw)}
   .fig{pointer-events:auto;-webkit-tap-highlight-color:transparent}
   .fig:active > svg{transform:scale(1.05)}
   .bubble{gap:6px;padding:8px 12px 8px 10px;font-size:12px}
   .m-hint{display:block;position:absolute;left:50%;top:5.4%;transform:translateX(-50%);margin:0;z-index:30;white-space:nowrap;font-size:12px;font-weight:500;color:var(--ink);text-shadow:var(--ink-shadow)}
-  .top{position:fixed;justify-content:space-between;gap:12px;padding:14px 16px 14px 20px}
+  .top{position:fixed;justify-content:space-between;gap:12px;
+    padding:calc(14px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) 14px calc(20px + env(safe-area-inset-left,0px))}
   .m-actions{display:flex;gap:8px}
   .sun,.grain{position:fixed}
-  .list{position:fixed;left:12px;right:12px;top:76px;width:auto;max-height:calc(100vh - 100px)}
-  .bottom{position:relative;left:auto;right:auto;bottom:auto;padding:0;max-width:560px;margin:0 auto}
-  .sound-btn{position:fixed;right:16px;bottom:16px;z-index:45}
+  .list{position:fixed;left:12px;right:12px;top:calc(76px + env(safe-area-inset-top,0px));width:auto;max-height:calc(100vh - 100px)}
+  @supports (height:100dvh){.list{max-height:calc(100dvh - 100px - env(safe-area-inset-top,0px))}}
+  .bottom{position:relative;left:auto;right:auto;bottom:auto;padding:0;margin:0 auto}
+  .sound-btn{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45}
 }
 
 /* Menu content */

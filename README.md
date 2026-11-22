@@ -6,7 +6,7 @@ A plain HTML/CSS/JS site with no build step. Open `index.html`, or upload the fo
 index.html            markup and the inline-SVG characters, nav, menu, speech bubbles, favicon and Open Graph tags
 links.js              your GitHub, LinkedIn, Instagram and email (the one place to change them)
 pages.js              inner-page content (About, Projects, Research, Contact), loaded the first time someone opens a page
-styles.css            layout, speech bubbles and menu
+styles.css            layout for every screen size (phones, tablets, laptops, PCs), speech bubbles and menu
 motion.css            all animation: moods, idle loops, hover reactions, entrance, transitions, reduced motion
 script.js             motion and interaction: zoom page transitions, spring bubbles, entrance, moods, cursor, sound
 favicon.svg, apple-touch-icon.png, og-image.jpg
@@ -110,10 +110,38 @@ Each of the four social people is an `<a class="fig" …>` inside a `<div class=
 | Instagram | the sunhat person with a phone | `socials` |
 | Contact (opens the Contact page) | the small child waving | `contact` |
 
-The other four people (sunbather, cat person, ball tosser, picnic group) are `<div class="fig" aria-hidden="true">` and only animate on hover.
+The other four people (sunbather, cat person, ball tosser, picnic group) are `<div class="fig" aria-hidden="true">` and only animate on hover (or when tapped on a touch screen).
 
 - **Nudge a bubble:** its `style="--bx:42.5%;--by:23.2%"` is where the tail points, as a percentage across and down that person's drawing. Lower `--by` moves the bubble up.
 - **Move a bubble to someone else:** on the old person, change `<a class="fig" href=… target=… rel=… data-link=…>` to `<div class="fig" aria-hidden="true">`, cut out its `<span class="sr-only">…</span>` and `<span class="bubble" …>…</span>`, and change the closing `</a>` to `</div>`. Do the reverse on the new person, then adjust `--bx` / `--by` so the tail sits above their head.
+
+## Screen sizes
+
+The site works on phones (iPhone and Android), iPads and other tablets, laptops and big desktop monitors, in either orientation. It picks one of three layouts by the shape of the screen, and switches instantly when you rotate a device or resize the window:
+
+| Screen | Layout | Who it's for |
+|---|---|---|
+| Wider than about 4:3 | The original lawn, filling the screen | Laptops, PCs, iPads held sideways, phones held sideways |
+| Taller or squarer, at least 600px wide | The same people re-arranged for an upright screen | iPads and Android tablets held upright, squarish windows |
+| Upright and under 600px wide | A tall lawn you scroll down | Phones held upright |
+
+In the first two layouts the grass always fills the screen, and the people are drawn at the largest size where everyone and every speech bubble fits below the top bar. On a normal laptop or PC that is exactly the original full-screen lawn. On a phone held sideways, a short browser window or an ultra-wide monitor, the people shrink a little or get more room instead of being cut off.
+
+On iPhones the layout also keeps clear of the notch and the home bar, and on every phone and tablet the speech bubbles stay visible because there's no hover. Tapping a person without a link plays their little animation.
+
+### Moving a person
+
+Each person's position is on their `<div class="spot" … style="…">` in `index.html`, with one set of numbers per layout:
+
+| Layout | Variables | Meaning |
+|---|---|---|
+| Original lawn | `--x`, `--y`, `--w` | left, top and width, as a % of the 1440 × 900 lawn |
+| Upright tablets | `--tx`, `--ty`, `--tw` | left, top and width, as a % of a 900 × 1200 lawn |
+| Phones | `--mx`, `--my`, `--mw` | left, top and width, as a % of the 390 × 1400 phone lawn |
+
+Change one number at a time and refresh. If you move someone in the first two layouts, the lawn needs to know the new outline of everyone so it can keep them all on screen. That outline is the `--px0 … --tip-y` numbers in `styles.css`, at the top of `.lawn` for the original lawn and in the "portrait tablets" block for upright tablets: the left, right, top and bottom edges of all the drawings (`--px0`, `--px1`, `--py0`, `--py1`) and of the bubble tails (`--tip-x0`, `--tip-x1`, `--tip-y`), in lawn pixels. A small change of position won't need them updated.
+
+To preview each layout on your computer, open the site in Chrome, press F12, then click the phone-and-tablet icon in the top-left corner of the panel that opens. Pick a device from the list at the top, such as iPhone 14 Pro or iPad Air, and use the rotate button to try both orientations.
 
 ## Publish it
 
@@ -146,7 +174,7 @@ The site is static, so there is nothing to build and any static host works.
 
 ### 3. After it's live: check
 
-1. Open the site on a laptop and a phone.
+1. Open the site on a laptop, a phone and, if you have one, a tablet. Turn the phone and tablet sideways too.
 2. Hover the four speech-bubble people and click each one: three open your profiles in a new tab and the child zooms into Contact. Then come back to the lawn.
 3. Try the nav, the hamburger menu, all three moods and the sound toggle.
 4. Paste your link into a link-preview checker, such as opengraph.xyz or LinkedIn's Post Inspector, to confirm the share image and title show up.
@@ -178,7 +206,7 @@ The site is static, so there is nothing to build and any static host works.
 - **Click a person:** only the four bubble people do something. GitHub, LinkedIn and Instagram open in a new tab. The child zooms the lawn about 3× into them and fades to a soft green, then the Contact page slides up (about 700ms). "Back to the lawn", the browser's back button or Esc reverses it. Pages live at `#/about`, `#/projects`, `#/research` and `#/contact`, so they can be linked and bookmarked.
 - **Sun/moon button (top right):** cycles Day → Golden hour → Night over 1.2s. Golden hour brings warm grass and long diagonal orange-tinted shadows. Night brings teal grass, blue shadows, fireflies and a warm rim light on the characters. The choice is saved; first-time visitors get the mood that matches their local time of day.
 - **Nav and menu:** About, Projects and Research sit in the top bar of the lawn, next to the sun/moon button and the hamburger. The hamburger hides the lawn and slides in a menu with every page plus GitHub, LinkedIn and Instagram. Pages opened from the nav or menu fade in, and "Back to the lawn" zooms back out.
-- **Touch:** there's no hover on touch screens, so the four speech bubbles stay visible; tap a bubble or its person. On phones (under 768px) the lawn scrolls vertically and the nav moves into the hamburger.
+- **Touch:** there's no hover on touch screens, so the four speech bubbles stay visible; tap a bubble or its person. Tapping anyone else plays their hover reaction for a moment. On phones held upright the lawn scrolls vertically and the nav moves into the hamburger. See "Screen sizes" for the other layouts.
 - **Reduced motion:** loops, zooms and springs are switched off and only simple fades remain.
 - **Performance:**
   - Animations pause when the tab is hidden, the lawn is scrolled off screen, or an inner page is open.

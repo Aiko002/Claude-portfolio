@@ -200,7 +200,8 @@ html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
 .scene{transition:opacity .35s ease,visibility 0s linear 0s}
 .lawn.list-open{background-color:var(--page-bg)}
 .lawn.list-open .scene,.lawn.list-open .sun,.lawn.list-open .night-tint{opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
-.lawn.list-open .list{left:50%;top:120px;transform:translateX(-50%);width:min(560px,calc(100% - 32px));max-height:calc(100% - 220px)}
+.lawn.list-open .list{left:50%;top:calc(var(--pad-top) + 24px);transform:translateX(-50%);width:min(560px,calc(100% - 32px));max-height:calc(100% - var(--pad-top) - 48px)}
+@media (max-height:519.98px){.lawn.list-open .list{top:var(--pad-top);max-height:calc(100% - var(--pad-top) - 10px)}}
 .list:not([hidden]){animation:panelIn .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes panelIn{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
 
@@ -218,7 +219,7 @@ html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
    ========================================================================== */
 .wash{position:absolute;inset:0;z-index:44;pointer-events:none;background:var(--page-bg);opacity:0}
 .page-layer{position:fixed;inset:0;z-index:45;overflow:auto;overscroll-behavior:contain;background:var(--page-bg);color:#16210D}
-.page-shell{max-width:880px;margin:0 auto;padding:24px 32px 96px}
+.page-shell{max-width:880px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) calc(32px + env(safe-area-inset-left,0px))}
 .page-head{position:relative;display:flex;align-items:center;justify-content:space-between;height:96px;border-bottom:1px solid rgba(22,33,13,.1)}
 .back{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px 0 14px;border-radius:999px;background:#fff;color:#16210D;text-decoration:none;font-size:14px;font-weight:500;box-shadow:0 2px 10px rgba(28,44,10,.1)}
 .back svg{transition:transform .25s ease}
@@ -248,16 +249,25 @@ html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
 .pg-links a:hover{transform:translateY(-2px)}
 
 /* ==========================================================================
-   9. MOBILE ADDITIONS (<768px): menu
+   9. PHONES HELD UPRIGHT: menu; plus narrow and short screens for the inner pages
    ========================================================================== */
-@media (max-width:767.98px){
+@media (max-width:599.98px) and (orientation:portrait){
   .sun,.night-tint,.grain{position:fixed}
   .lawn{overflow-x:clip}
   .lawn.list-open .scene{display:none}
   .lawn.list-open{min-height:100vh}
-  .lawn.list-open .list{left:12px;right:12px;top:76px;transform:none;width:auto}
-  .page-shell{padding:16px 20px 80px}
+  .lawn.list-open .list{left:12px;right:12px;top:calc(76px + env(safe-area-inset-top,0px));transform:none;width:auto}
+}
+@media (max-width:599.98px){
+  .page-shell{padding:calc(16px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-right,0px)) calc(80px + env(safe-area-inset-bottom,0px)) calc(20px + env(safe-area-inset-left,0px))}
   .page-head{height:80px}
+}
+@media (max-width:359.98px){
+  .mascot{transform:scale(.8);transform-origin:100% 100%}
+}
+@media (max-height:519.98px){
+  .page-head{height:72px}
+  .pg-kicker{margin-top:24px}
 }
 
 /* ==========================================================================

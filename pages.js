@@ -1,13 +1,17 @@
 /* Inner-page content. Loaded lazily the first time someone opens a page.
  *
  * Pages with a `view` use the full layout (header photo, nav, footer) drawn by views.js:
- *   about (also "creative developer"), projects (also "Gallery"), papers, blog (Field Notes), playground, timeline.
- * `link` / `action` values are page ids: about, projects, papers, blog, playground, timeline, socials, hobbies, contact.
+ *   about (also "creative developer"), projects (also "Gallery"), research (Papers), blog (Field Notes), playground, timeline.
+ * `link` / `action` values are page ids: about, projects, research, blog, playground, timeline, socials, hobbies, contact.
  *
  * The other pages (socials, hobbies, contact) use the simple layout.
  * Everything in [brackets] is a placeholder to replace with your own content.
  * Block types: "grid" (cards), "list" (rows), "text" (paragraph), "links" (pill links).
+ * Your social links and email live in links.js (LINKS below), so change them there.
  */
+(() => {
+  const LINKS = window.AZZAH_LINKS || {};
+
 window.AZZAH_PAGES = {
   about: {
     view: 'about',
@@ -27,7 +31,7 @@ window.AZZAH_PAGES = {
       ['Outside the editor', 'Playing fingerstyle acoustic guitar on sunlit lawns, sketching UI ideas in paper notebooks, and befriending neighborhood cats.'],
     ],
     // [label, page id, primary?]
-    actions: [['Browse Projects', 'projects', true], ['Read Papers', 'papers'], ['Say hello', 'contact']],
+    actions: [['Browse Projects', 'projects', true], ['Read Papers', 'research'], ['Say hello', 'contact']],
   },
 
   projects: {
@@ -96,7 +100,7 @@ window.AZZAH_PAGES = {
           'Clean SVG and declarative JSON scene serialization',
         ],
         repo: 'azzah/flatland-canvas',
-        action: ['View Related Paper', 'papers'],
+        action: ['View Related Paper', 'research'],
       },
       {
         title: 'Papergrain Shaders', year: '2023', tags: ['GLSL', 'CSS', 'Open Source'],
@@ -114,7 +118,7 @@ window.AZZAH_PAGES = {
     ],
   },
 
-  papers: {
+  research: {
     view: 'papers',
     title: 'Papers & Publications',
     subtitle: 'Research notes, peer-reviewed papers, and open-source implementations on spatial interfaces.',
@@ -200,10 +204,10 @@ window.AZZAH_PAGES = {
     subtitle: 'A chronological log of sunny web tools, research publications, and quiet essays from 2022 to 2026.',
     items: [
       { year: '2026', season: 'Spring', kind: 'Project', title: 'Released Sunspot Park Map', summary: 'WebGL solar canopy shadow explorer for discovering warm lawn spots and shaded benches.', link: 'projects' },
-      { year: '2025', season: 'Autumn', kind: 'Paper', title: 'Published "Calm Interfaces in Spatial Canvases" at ACM CHI', summary: 'Empirical study on illustrated spatial homepages and low-fatigue software surfaces.', link: 'papers' },
+      { year: '2025', season: 'Autumn', kind: 'Paper', title: 'Published "Calm Interfaces in Spatial Canvases" at ACM CHI', summary: 'Empirical study on illustrated spatial homepages and low-fatigue software surfaces.', link: 'research' },
       { year: '2025', season: 'Summer', kind: 'Project', title: 'Built Lawn Synth Studio & Folio Type Specimen', summary: 'Two browser-native creative tools crafted for acoustic warmth and editorial typography.', link: 'projects' },
-      { year: '2024', season: 'Winter', kind: 'Paper', title: 'Reactive Layout Primitives for Flatland at ACM UIST', summary: 'Sub-2ms WASM constraint kernel powering Flatland Canvas and Marginalia Reader.', link: 'papers' },
-      { year: '2023', season: 'Summer', kind: 'Paper', title: 'Paper-Grain Shaders at SIGGRAPH & Marginalia at Hypertext', summary: 'Open-sourced procedural paper grain shaders and local-first reading tools.', link: 'papers' },
+      { year: '2024', season: 'Winter', kind: 'Paper', title: 'Reactive Layout Primitives for Flatland at ACM UIST', summary: 'Sub-2ms WASM constraint kernel powering Flatland Canvas and Marginalia Reader.', link: 'research' },
+      { year: '2023', season: 'Summer', kind: 'Paper', title: 'Paper-Grain Shaders at SIGGRAPH & Marginalia at Hypertext', summary: 'Open-sourced procedural paper grain shaders and local-first reading tools.', link: 'research' },
       { year: '2022', season: 'Autumn', kind: 'Field Note', title: 'Started researching calm, sunny software', summary: 'First IEEE VIS publication on deterministic grid snapping and founding principles.', link: 'blog' },
     ],
   },
@@ -270,7 +274,7 @@ window.AZZAH_PAGES = {
     color: '#4C8FD6', kicker: 'Socials', title: 'Find me around',
     intro: 'Say hi wherever you hang out.',
     blocks: [
-      { type: 'links', heading: 'Elsewhere', items: [['GitHub', '[https://github.com/…]'], ['LinkedIn', '[https://linkedin.com/in/…]'], ['X', '[https://x.com/…]'], ['Instagram', '[https://instagram.com/…]'], ['Email', 'mailto:']] },
+      { type: 'links', heading: 'Elsewhere', items: [['GitHub', LINKS.github || '#'], ['LinkedIn', LINKS.linkedin || '#'], ['Instagram', LINKS.instagram || '#'], ['Email', 'mailto:' + (LINKS.email || '')]] },
     ],
   },
   hobbies: {
@@ -289,7 +293,8 @@ window.AZZAH_PAGES = {
     color: '#3E9B4F', kicker: 'Contact', title: 'Say hello',
     intro: '[Your availability]. The fastest way to reach me is email.',
     blocks: [
-      { type: 'links', heading: 'Reach me', items: [['[you@email.com]', 'mailto:'], ['LinkedIn', '[https://linkedin.com/in/…]']] },
+      { type: 'links', heading: 'Reach me', items: [[LINKS.email || 'Email', 'mailto:' + (LINKS.email || '')], ['LinkedIn', LINKS.linkedin || '#']] },
     ],
   },
 };
+})();

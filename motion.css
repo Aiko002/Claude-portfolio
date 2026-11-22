@@ -16,7 +16,7 @@ body{font-family:Poppins,"Poppins Fallback",Arial,sans-serif}
   --grass:#8DB33F; --shade:#5E8A2B; --dapple:#8DB33F; --tuft:#7DA236;
   --page-bg:#E7EED3;
   --cast:none; --sun-op:0; --night-op:0; --fly-op:0;
-  --canopy:#2E4200;   /* dark fade behind the nav, footer and list view */
+  --canopy-shade:#2E4200;   /* dark fade behind the nav and the list view */
   --sp-grade:sepia(0) saturate(1) brightness(1) hue-rotate(0deg);   /* inner-page header photo */
 }
 html[data-mood="golden"]{
@@ -27,7 +27,7 @@ html[data-mood="golden"]{
 html[data-mood="night"]{
   --grass:#2D5A4B; --shade:#1C3A57; --dapple:#356656; --tuft:#27503F;
   --night-op:1; --fly-op:1;
-  --canopy:#0B2430;
+  --canopy-shade:#0B2430;
   --sp-grade:sepia(0) saturate(.85) brightness(.62) hue-rotate(18deg);
 }
 html .lawn{--sx:3px;--sy:5px;--sc:rgba(40,66,14,.30);--rim:rgba(255,196,120,0);--rim-r:0px;--char-b:1;--leaf-b:1;--leaf-sc:rgba(30,50,10,.22)}
@@ -45,7 +45,7 @@ html,body{background-color:var(--grass);transition:background-color var(--mood-t
 .shadow-cast{transform-box:view-box;transform-origin:100% 100%;transform:var(--cast);transition:transform var(--mood-t) var(--mood-ease)}
 
 /* character shadow + warm night rim light + night dimming, all one filter list so it interpolates */
-.fig svg{
+.fig > svg{
   filter:drop-shadow(var(--sx) var(--sy) 0 var(--sc)) drop-shadow(0 0 var(--rim-r) var(--rim)) brightness(var(--char-b));
   transition:transform .45s cubic-bezier(.2,.8,.2,1),filter var(--mood-t) var(--mood-ease)}
 .canopy{filter:drop-shadow(10px 14px 6px var(--leaf-sc)) brightness(var(--leaf-b));transition:filter var(--mood-t) var(--mood-ease)}
@@ -66,8 +66,8 @@ html:not([data-mood="night"]) .firefly{animation-play-state:paused}
 
 /* sun / sunset / moon toggle */
 .mood-btn{position:relative}
-.top-right .mood-btn,.sp-right .mood-btn{width:44px;height:44px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#1F5BA0;cursor:pointer;box-shadow:0 2px 10px rgba(28,44,10,.12)}
-.top-right .mood-btn:hover,.sp-right .mood-btn:hover{background:#F2F7FD}
+.top-right .mood-btn,.top-right .menu-btn,.sp-right .mood-btn{width:44px;height:44px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#1F5BA0;cursor:pointer;box-shadow:0 2px 10px rgba(28,44,10,.12)}
+.top-right .mood-btn:hover,.top-right .menu-btn:hover,.top-right .menu-btn[aria-expanded="true"],.sp-right .mood-btn:hover{background:#F2F7FD}
 .mood-btn .mi{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;opacity:0;transform:rotate(-90deg) scale(.5);transition:opacity .45s ease,transform .6s cubic-bezier(.3,1.4,.5,1)}
 html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood="night"] .mi-night{opacity:1;transform:none}
 
@@ -123,7 +123,7 @@ html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood
    ========================================================================== */
 .spot{transition:opacity .3s ease}
 .scene.has-active .spot:not(.is-active){opacity:.7}
-.spot.is-active .fig svg{transform:scale(1.06)}
+.spot.is-active .fig > svg{transform:scale(1.06)}
 .fig::after{content:"";position:absolute;left:10%;right:10%;top:20%;bottom:8%;z-index:-1;border-radius:50%;pointer-events:none;
   background:radial-gradient(closest-side,rgba(18,34,6,.34),rgba(18,34,6,0));opacity:0;transform:scale(.9);
   transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.2,1)}
@@ -132,16 +132,7 @@ html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood
 
 .fig:focus-visible{outline:3px solid #fff;outline-offset:4px;box-shadow:0 0 0 10px rgba(16,30,6,.55)}
 
-/* popup card: JS positions it and springs it in; the arrow follows the chosen side */
-.card.is-placed{right:auto;bottom:auto;margin:0}
-.card::after{content:"";position:absolute;background:rgba(255,255,255,.86);display:none}
-.card[data-side]::after{display:block}
-.card[data-side="right"]::after{left:-8px;top:var(--ay,24px);width:8px;height:16px;margin-top:-8px;clip-path:polygon(100% 0,0 50%,100% 100%)}
-.card[data-side="left"]::after{right:-8px;top:var(--ay,24px);width:8px;height:16px;margin-top:-8px;clip-path:polygon(0 0,100% 50%,0 100%)}
-.card[data-side="top"]::after{bottom:-8px;left:var(--ax,24px);width:16px;height:8px;margin-left:-8px;clip-path:polygon(0 0,100% 0,50% 100%)}
-.card[data-side="bottom"]::after{top:-8px;left:var(--ax,24px);width:16px;height:8px;margin-left:-8px;clip-path:polygon(0 100%,50% 0,100% 100%)}
-.cb-icon{transition:transform .25s cubic-bezier(.3,1.6,.5,1),background-color .2s ease,color .2s ease}
-.cb-icon:hover,.cb-icon:focus-visible{transform:scale(1.15)}
+/* speech bubble: JS springs it in from the tail (same spring the popup cards used) */
 
 /* ==========================================================================
    4. PER-CHARACTER HOVER REACTIONS (each loop < 1s)
@@ -208,18 +199,18 @@ html.intro .grass-layer,html.intro .shadows-in,html.intro .canopy,html.intro .sp
 html.intro .top,html.intro .bottom,html.intro .m-hint,html.intro .edge{opacity:0}
 
 /* ==========================================================================
-   6. LIST VIEW: the lawn blurs behind a dark canopy scrim, the directory rises in
+   6. LIST VIEW (opened by the hamburger): the lawn blurs behind a dark canopy scrim
    ========================================================================== */
-/* dark fades along the top and bottom edges keep the white nav and footer legible */
-.edge{position:absolute;left:0;right:0;z-index:28;pointer-events:none;background-color:var(--canopy);transition:background-color var(--mood-t) var(--mood-ease)}
-.edge--top{top:0;height:128px;-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent)}
+/* dark fades along the top and bottom edges keep the white nav legible */
+.edge{position:absolute;left:0;right:0;z-index:28;pointer-events:none;background-color:var(--canopy-shade);transition:background-color var(--mood-t) var(--mood-ease)}
+.edge--top{top:0;height:calc(128px + env(safe-area-inset-top,0px));-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent)}
 .edge--bottom{bottom:0;height:112px;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent);mask-image:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent)}
-.list-scrim{position:absolute;inset:0;z-index:27;pointer-events:none;background-color:var(--canopy);opacity:0;
+.list-scrim{position:absolute;inset:0;z-index:27;pointer-events:none;background-color:var(--canopy-shade);opacity:0;
   transition:opacity .25s ease,background-color var(--mood-t) var(--mood-ease)}
 .lawn.list-open .list-scrim{opacity:.65}
 .scene{transition:filter .3s ease-out,transform .3s ease-out}
-@media (min-width:768px){
-  .lawn.list-open .scene{filter:blur(12px);transform:translate(-50%,-50%) scale(1.05);pointer-events:none}
+@media (min-width:600px), (orientation:landscape){
+  .lawn.list-open .scene{filter:blur(12px);transform:scale(1.05);pointer-events:none}
 }
 .list:not([hidden]){animation:panelIn .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes panelIn{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
@@ -227,9 +218,8 @@ html.intro .top,html.intro .bottom,html.intro .m-hint,html.intro .edge{opacity:0
 /* ==========================================================================
    7. CONTRAST — backing pills keep text over grass at WCAG AA in every mood
    ========================================================================== */
-.bl,.tagline,.m-hint{background:rgba(16,30,6,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-shadow:none;border-radius:999px}
-.bl{padding:0 18px;color:#fff}
-.tagline{padding:8px 14px;margin:0}
+/* the logo and nav sit on the dark .edge fade instead (section 6) */
+.m-hint{background:rgba(16,30,6,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-shadow:none;border-radius:999px}
 .m-hint{padding:6px 12px}
 
 /* ==========================================================================
@@ -237,7 +227,7 @@ html.intro .top,html.intro .bottom,html.intro .m-hint,html.intro .edge{opacity:0
    ========================================================================== */
 .wash{position:absolute;inset:0;z-index:44;pointer-events:none;background:var(--page-bg);opacity:0}
 .page-layer{position:fixed;inset:0;z-index:45;overflow:auto;overscroll-behavior:contain;background:var(--page-bg);color:#16210D}
-.page-shell{max-width:880px;margin:0 auto;padding:24px 32px 96px}
+.page-shell{max-width:880px;margin:0 auto;padding:calc(24px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) calc(32px + env(safe-area-inset-left,0px))}
 .page-head{position:relative;display:flex;align-items:center;justify-content:space-between;height:96px;border-bottom:1px solid rgba(22,33,13,.1)}
 .back{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px 0 14px;border-radius:999px;background:#fff;color:#16210D;text-decoration:none;font-size:14px;font-weight:500;box-shadow:0 2px 10px rgba(28,44,10,.1)}
 .back svg{transition:transform .25s ease}
@@ -267,22 +257,26 @@ html.intro .top,html.intro .bottom,html.intro .m-hint,html.intro .edge{opacity:0
 .pg-links a:hover{transform:translateY(-2px)}
 
 /* ==========================================================================
-   9. MOBILE ADDITIONS (<768px): menu icon nav, list view
+   9. PHONES HELD UPRIGHT: menu; plus narrow and short screens for the inner pages
    ========================================================================== */
-@media (max-width:767.98px){
+@media (max-width:599.98px) and (orientation:portrait){
   .sun,.night-tint,.grain{position:fixed}
   .lawn{overflow-x:clip}
   .lawn.list-open .scene,.lawn.list-open .m-hint{display:none}
-  .lawn.list-open .bl,.lawn.list-open .tagline{visibility:hidden}   /* the footer would sit under the full-screen list */
   .lawn.list-open{min-height:100vh}
-  .edge--top{position:fixed;height:80px;z-index:39;-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent)}
+  .edge--top{position:fixed;height:calc(80px + env(safe-area-inset-top,0px));z-index:39;-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent)}
   .edge--bottom,.list-scrim{display:none}
-  .lawn.nav-open .nav{display:flex;flex-direction:column;gap:4px;position:fixed;top:72px;right:12px;z-index:55;padding:8px;border-radius:16px;
-    background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 18px 40px rgba(28,44,10,.25);animation:panelIn .25s cubic-bezier(.2,.8,.2,1)}
-  .lawn.nav-open .nav a{min-width:160px;padding:0 16px;border-radius:10px;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:#16210D}
-  .lawn.nav-open .nav a:hover{background:rgba(22,33,13,.06)}
-  .page-shell{padding:16px 20px 80px}
+}
+@media (max-width:599.98px){
+  .page-shell{padding:calc(16px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-right,0px)) calc(80px + env(safe-area-inset-bottom,0px)) calc(20px + env(safe-area-inset-left,0px))}
   .page-head{height:80px}
+}
+@media (max-width:359.98px){
+  .mascot{transform:scale(.8);transform-origin:100% 100%}
+}
+@media (max-height:519.98px){
+  .page-head{height:72px}
+  .pg-kicker{margin-top:24px}
 }
 
 /* ==========================================================================
@@ -294,18 +288,16 @@ html.is-hidden *,html.is-hidden *::after{animation-play-state:paused!important}
 /* ==========================================================================
    11. REDUCED MOTION — no loops, no transform transitions, simple fades only
    ========================================================================== */
-@media (min-width:768px) and (prefers-reduced-motion: reduce){
-  .lawn.list-open .scene{transform:translate(-50%,-50%)}
-}
 @media (prefers-reduced-motion: reduce){
-  .scene *,.scene *::after,.grain,.mascot svg,.mascot .wave,.list:not([hidden]),.lawn.nav-open .nav{animation:none!important}
+  .scene *,.scene *::after,.grain,.mascot svg,.mascot .wave,.list:not([hidden]){animation:none!important}
   .scene{transition-property:filter}
+  .lawn.list-open .scene{transform:none!important}
   .li-title{transition:none}
   .li-row:hover .li-title{transform:none}
-  .fig svg,.fig::after,.shadow-cast,.mood-btn .mi,.cb-icon,.pg-links a,.back svg{transition-property:opacity,filter!important}
-  .spot.is-active .fig svg{transform:none}
+  .fig > svg,.fig::after,.shadow-cast,.mood-btn .mi,.pg-links a,.back svg{transition-property:opacity,filter!important}
+  .spot.is-active .fig > svg{transform:none}
   .spot.is-active .fig::after{transform:none}
-  .cb-icon:hover,.cb-icon:focus-visible,.pg-links a:hover{transform:none}
+  .pg-links a:hover{transform:none}
   .mood-btn .mi{transform:none!important}
   .grain{transform:none}
 }

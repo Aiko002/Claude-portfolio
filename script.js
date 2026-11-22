@@ -1,7 +1,8 @@
 /* Azzah — park lawn portfolio
  * Motion + interaction layer (vanilla JS, Web Animations API — no build step):
- *   zoom page transitions & lazy inner pages, spring popup cards with auto-flip,
- *   first-visit entrance, Day / Golden / Night moods, list view, mobile sheets & menu,
+ *   zoom page transitions & lazy inner pages, spring speech bubbles over the social people,
+ *   first-visit entrance, Day / Golden / Night moods, list-view menu, Gallery / Timeline / About / Papers pages
+ *   (drawn by views.js) with spring detail dialogs,
  *   spring-smoothed cursor, optional Web Audio sounds, pause-when-hidden.
  */
 (() => {
@@ -9,7 +10,6 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   const root = document.documentElement;
   const lawn = $('#lawn');
@@ -18,16 +18,25 @@
   const bottom = $('.bottom');
   const spots = $$('.spot');
   const list = $('#section-list');
-  const sheetWrap = $('#sheet-wrap');
-  const sheetBody = $('#sheet-body');
-  const sheetTitle = $('#sheet-title');
   const wash = $('.wash');
   const pageLayer = $('#page-layer');
   const pageMain = $('#page-main');
+  const classicPage = $('#classic-page');
+  const spPage = $('#sp-page');
+  const spMain = $('#sp-main');
+  const spIntro = $('.sp-intro', spPage);
+  const spTitle = $('#sp-title');
+  const spSub = $('#sp-sub');
+  const modalWrap = $('#modal-wrap');
+  const modalBox = $('.modal', modalWrap);
+  const modalBody = $('#modal-body');
+  const modalScrim = $('.modal-scrim', modalWrap);
+  const logo = $('.top .logo');
   const mascot = $('.mascot');
   const announcer = $('#announcer');
 
-  const mqMobile = window.matchMedia('(max-width: 767.98px)');
+  // phones held upright get the tall scrolling lawn (keep in sync with the phone block in styles.css)
+  const mqMobile = window.matchMedia('(max-width: 599.98px) and (orientation: portrait)');
   const mqFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const isMobile = () => mqMobile.matches;
@@ -35,11 +44,25 @@
 
   const EASE_IN_OUT = 'cubic-bezier(.65,0,.35,1)';
   const EASE_OUT = 'cubic-bezier(.2,.8,.2,1)';
-  const PAGE_IDS = spots.map((s) => s.dataset.id);
+  // Inner pages, and the person on the lawn each page zooms out to on the way back.
+  const PAGE_NAME = {
+    about: 'About', projects: 'Projects', research: 'Papers & Publications', contact: 'Contact', timeline: 'Timeline',
+    blog: 'Field Notes', playground: 'Playground', socials: 'Socials', hobbies: 'Hobbies',
+  };
+  const PAGE_ORIGIN = {                    // Timeline has nobody on the lawn, so it just fades
+    about: 'about', projects: 'projects', research: 'papers', contact: 'contact',
+    blog: 'blog', playground: 'playground', socials: 'socials', hobbies: 'hobbies',
+  };
+  const PAGE_ALIAS = { papers: 'research' };
+  const PAGE_IDS = Object.keys(PAGE_NAME);
   const spotById = (id) => spots.find((s) => s.dataset.id === id);
+  const originSpot = (pageId) => spotById(PAGE_ORIGIN[pageId]);
   const figOf = (spot) => $('.fig', spot);
-  const cardOf = (spot) => $('.card', spot);
-  const titleOf = (spot) => $('.fig .sr-only', spot).textContent;
+  const bubbleOf = (spot) => $('.bubble', spot);
+
+  // Social links come from links.js, so they only need changing in one place.
+  const LINKS = window.AZZAH_LINKS || {};
+  $$('[data-link]').forEach((a) => { if (LINKS[a.dataset.link]) a.href = LINKS[a.dataset.link]; });
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -50,9 +73,6 @@
     set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } },
   };
   const announce = (text) => { announcer.textContent = ''; setTimeout(() => { announcer.textContent = text; }, 30); };
-
-  let lastPointerType = 'mouse';
-  window.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; }, { capture: true, passive: true });
 
   /* ==================================================================== sound */
   const Sound = (() => {
@@ -254,85 +274,33 @@
     announce(`Light set to ${MOOD_LABEL[next]}`);
   }));
 
-  /* ==================================================================== popup cards (desktop) */
+  /* ==================================================================== speech bubbles (desktop hover)
+   * Only the four social people have a bubble. Everyone else still lifts and animates on hover.
+   * The bubble sits above the person's head (CSS places it from --bx / --by) and springs in. */
   let activeSpot = null;
   let closeTimer = 0;
 
-  function placeCard(spot) {
-    const card = cardOf(spot);
-    const hit = $('.hit', spot) || figOf(spot);
-    card.classList.add('is-placed');
-    card.style.left = '0px';
-    card.style.top = '0px';
-    const f = hit.getBoundingClientRect();
-    const s = spot.getBoundingClientRect();
-    const cw = card.offsetWidth;
-    const ch = card.offsetHeight;
-    const vw = root.clientWidth;
-    const vh = window.innerHeight;
-    const M = 12;
-    const GAP = 12;
-    const safeTop = 96;       // clear of the nav
-    const safeBottom = 84;    // clear of the footer
-    const room = { right: vw - M - f.right, left: f.left - M, top: f.top - safeTop, bottom: vh - safeBottom - f.bottom };
-    const need = { right: cw + GAP, left: cw + GAP, top: ch + GAP, bottom: ch + GAP };
-    const m = card.className.match(/card--(right|left|below|above)/);
-    const preferred = m ? ({ below: 'bottom', above: 'top' }[m[1]] || m[1]) : 'right';
-    const opposite = { right: 'left', left: 'right', top: 'bottom', bottom: 'top' };
-    const order = [preferred, opposite[preferred], 'right', 'left', 'bottom', 'top'].filter((v, i, a) => a.indexOf(v) === i);
-    const side = order.find((sd) => room[sd] >= need[sd]) ||
-      order.reduce((best, sd) => (room[sd] - need[sd] > room[best] - need[best] ? sd : best), order[0]);
-
-    const cx = f.left + f.width / 2;
-    const cy = f.top + f.height / 2;
-    let x;
-    let y;
-    if (side === 'right' || side === 'left') {
-      x = side === 'right' ? f.right + GAP : f.left - GAP - cw;
-      y = clamp(cy - ch * 0.4, safeTop, vh - safeBottom - ch);
-    } else {
-      y = side === 'bottom' ? f.bottom + GAP : f.top - GAP - ch;
-      x = clamp(cx - cw / 2, M, vw - M - cw);
-    }
-    x = clamp(x, M, Math.max(M, vw - M - cw));
-    y = clamp(y, M, Math.max(M, vh - M - ch));
-    card.style.left = Math.round(x - s.left) + 'px';
-    card.style.top = Math.round(y - s.top) + 'px';
-    card.dataset.side = side;
-    if (side === 'right' || side === 'left') {
-      const ay = clamp(cy - y, 18, ch - 18);
-      card.style.setProperty('--ay', ay + 'px');
-      return `${side === 'right' ? '0' : '100%'} ${ay}px`;
-    }
-    const ax = clamp(cx - x, 18, cw - 18);
-    card.style.setProperty('--ax', ax + 'px');
-    return `${ax}px ${side === 'bottom' ? '0' : '100%'}`;
-  }
-
-  function openCard(spot) {
-    const card = cardOf(spot);
-    card.getAnimations().forEach((a) => a.cancel());
-    const origin = placeCard(spot);
+  function openBubble(spot) {
+    const bubble = bubbleOf(spot);
+    if (!bubble) return;
+    bubble.getAnimations().forEach((a) => a.cancel());
     spot.classList.add('is-open');
-    figOf(spot).setAttribute('aria-expanded', 'true');
     if (reduced()) {
-      card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+      bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
       return;
     }
-    card.style.transformOrigin = origin;
     const n = CARD_SPRING.values.length - 1;
-    card.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
+    bubble.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
       { duration: CARD_SPRING.duration, easing: 'linear' });
-    card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+    bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
   }
 
-  function closeCard(spot, immediate) {
-    figOf(spot).setAttribute('aria-expanded', 'false');
+  function closeBubble(spot, immediate) {
     if (!spot.classList.contains('is-open')) return;
-    const card = cardOf(spot);
-    card.getAnimations().forEach((a) => a.cancel());
+    const bubble = bubbleOf(spot);
+    bubble.getAnimations().forEach((a) => a.cancel());
     if (immediate) { spot.classList.remove('is-open'); return; }
-    const a = card.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
+    const a = bubble.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
       { duration: 120, easing: 'ease-in' });
     a.onfinish = () => { if (!spot.classList.contains('is-active')) spot.classList.remove('is-open'); };
   }
@@ -344,7 +312,7 @@
     activeSpot = spot;
     spot.classList.add('is-active');
     scene.classList.add('has-active');
-    if (!isMobile()) openCard(spot);
+    if (!isMobile()) openBubble(spot);
     if (sound) playOpen(spot.dataset.id);
     prefetchPages();
   }
@@ -352,7 +320,7 @@
   function deactivate(spot, immediate = false) {
     if (!spot) return;
     spot.classList.remove('is-active');
-    closeCard(spot, immediate);
+    closeBubble(spot, immediate);
     if (activeSpot === spot) {
       activeSpot = null;
       scene.classList.remove('has-active');
@@ -368,7 +336,7 @@
     }, 150);
   }
 
-  // Hover: delegate so only the figure's hit area and its card count as "on" the person.
+  // Hover: delegate so only the figure's hit area and its speech bubble count as "on" the person.
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType === 'touch') return;
     const t = e.target instanceof Element ? e.target : null;
@@ -377,9 +345,24 @@
     if (spot && !isMobile()) activate(spot);
     else scheduleClose();
   });
-  root.addEventListener('pointerleave', scheduleClose);
+  root.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') scheduleClose(); });   // a lifted finger 'leaves' too
 
-  // Keyboard focus opens the card too; touch/mouse focus does not.
+  // Touch screens have no hover, so tapping someone without a link plays their hover reaction for a moment.
+  let tapTimer = 0;
+  spots.forEach((spot) => {
+    const fig = figOf(spot);
+    if (fig.matches('a')) return;
+    fig.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse') return;
+      activate(spot);
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => { if (activeSpot === spot) deactivate(spot); }, 1800);
+    });
+  });
+  // iOS Safari only applies :active (the little press feedback) when a touch listener exists
+  document.addEventListener('touchstart', () => {}, { passive: true });
+
+  // Keyboard focus opens the bubble too; touch/mouse focus does not.
   document.addEventListener('focusin', (e) => {
     const t = e.target;
     const spot = t.closest && t.closest('.spot');
@@ -394,110 +377,181 @@
     deactivate(activeSpot);
   });
 
-  /* ==================================================================== bottom sheet (mobile + any touch) */
-  let sheetReturnFocus = null;
-  function openSheet(spot) {
-    deactivate(activeSpot, true);
-    sheetBody.innerHTML = cardOf(spot).innerHTML;
-    sheetTitle.textContent = titleOf(spot);
-    sheetReturnFocus = figOf(spot);
-    sheetWrap.hidden = false;
-    document.body.style.overflow = 'hidden';
-    $('.sheet-x', sheetWrap).focus({ preventScroll: true });
-    playOpen(spot.dataset.id);
-  }
-  function closeSheet({ restoreFocus = true } = {}) {
-    if (sheetWrap.hidden) return;
-    sheetWrap.hidden = true;
-    sheetBody.innerHTML = '';
-    document.body.style.overflow = '';
-    if (restoreFocus && sheetReturnFocus) sheetReturnFocus.focus({ preventScroll: true });
-  }
-  $$('[data-sheet-close]').forEach((b) => b.addEventListener('click', () => closeSheet()));
-  sheetWrap.addEventListener('keydown', (e) => {          // keep focus inside the sheet
-    if (e.key !== 'Tab') return;
-    const f = $$('a[href], button:not([tabindex="-1"])', sheetWrap);
-    if (!f.length) return;
-    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-  });
-
-  /* ==================================================================== clicking a person */
-  spots.forEach((spot) => {
-    figOf(spot).addEventListener('click', () => {
-      if (isMobile() || lastPointerType === 'touch') openSheet(spot);
-      else go(spot.dataset.id);
-    });
-  });
-
-  /* ==================================================================== list view + mobile menu */
+  /* ==================================================================== list view (the hamburger menu) */
   const listToggles = $$('[data-list-toggle]');
+  const visibleToggle = () => listToggles.find((b) => b.offsetParent !== null);
   function setList(open) {
     if (open === !list.hidden) return;
+    const hadFocus = list.contains(document.activeElement);
     list.hidden = !open;
     lawn.classList.toggle('list-open', open);
-    listToggles.forEach((b) => b.setAttribute('aria-pressed', String(open)));
+    scene.inert = open;                     // people can't be hovered or tabbed to behind the list
+    listToggles.forEach((b) => b.setAttribute('aria-expanded', String(open)));
+    updatePause();
     if (open) {
       deactivate(activeSpot, true);
-      setMenu(false);
+      prefetchPages();
       const first = $('.li-row', list);
       if (first) first.focus({ preventScroll: true });
+    } else if (hadFocus) {
+      const visible = visibleToggle();
+      if (visible) visible.focus({ preventScroll: true });
     }
   }
   listToggles.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setList(list.hidden); }));
-  $('[data-list-close]').addEventListener('click', () => {
-    setList(false);
-    const visible = listToggles.find((b) => b.offsetParent !== null);
-    if (visible) visible.focus();
-  });
   $('[data-open-list]').addEventListener('click', (e) => { e.preventDefault(); setList(true); });
-  $$('[data-open]', list).forEach((row) => row.addEventListener('click', () => go(row.dataset.open, { zoom: false })));
-
-  const menuBtn = $('[data-menu-toggle]');
-  function setMenu(open) {
-    lawn.classList.toggle('nav-open', open);
-    if (menuBtn) menuBtn.setAttribute('aria-expanded', String(open));
-  }
-  if (menuBtn) menuBtn.addEventListener('click', (e) => { e.stopPropagation(); setMenu(!lawn.classList.contains('nav-open')); });
-  document.addEventListener('click', (e) => {
-    if (lawn.classList.contains('nav-open') && !e.target.closest('#primary-nav')) setMenu(false);
+  // "L" toggles the list on the lawn (not while typing, on a page, or with a dialog open)
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'l' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (pageOpen || transitioning || !modalWrap.hidden) return;
+    setList(list.hidden);
   });
-  $$('#primary-nav a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
-  mqMobile.addEventListener('change', () => { deactivate(activeSpot, true); closeSheet({ restoreFocus: false }); setMenu(false); });
+  mqMobile.addEventListener('change', () => deactivate(activeSpot, true));
+
+  /* ==================================================================== opening pages
+   * Nav links, the creative developer pill and list rows fade the page in. The Contact child zooms in
+   * (its link is a plain #/contact hash). The GitHub / LinkedIn / Instagram people are normal links. */
+  let opener = null;                       // where focus goes back to after "Back to the lawn"
+  $$('[data-open]').forEach((el) => el.addEventListener('click', (e) => {
+    e.preventDefault();
+    opener = el;
+    go(el.dataset.open, { zoom: false });
+  }));
+  spots.forEach((spot) => {
+    const fig = figOf(spot);
+    if (fig.matches('a[href^="#/"]')) fig.addEventListener('click', () => { opener = fig; });
+  });
 
   /* ==================================================================== inner pages (lazy) */
-  let pagesPromise = null;
-  function loadPages() {
-    if (window.AZZAH_PAGES) return Promise.resolve(window.AZZAH_PAGES);
-    if (!pagesPromise) {
-      pagesPromise = new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'pages.js';
-        s.async = true;
-        s.onload = () => resolve(window.AZZAH_PAGES);
-        s.onerror = () => { pagesPromise = null; reject(new Error('pages.js failed to load')); };
-        document.head.appendChild(s);
-      });
+  // pages.js holds the content, views.js draws the Gallery / Timeline / About / Papers / Field Notes / Playground pages.
+  const scriptCache = new Map();
+  function loadScript(src) {
+    if (!scriptCache.has(src)) {
+      scriptCache.set(src, new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src;
+        el.async = true;
+        el.onload = resolve;
+        el.onerror = () => { scriptCache.delete(src); reject(new Error(src + ' failed to load')); };
+        document.head.appendChild(el);
+      }));
     }
-    return pagesPromise;
+    return scriptCache.get(src);
+  }
+  function loadPages() {
+    if (window.AZZAH_PAGES && window.AZZAH_VIEWS) return Promise.resolve(window.AZZAH_PAGES);
+    return Promise.all([
+      window.AZZAH_PAGES ? null : loadScript('pages.js'),
+      window.AZZAH_VIEWS ? null : loadScript('views.js').catch(() => null),   // without it, pages fall back to the simple layout
+    ]).then(() => window.AZZAH_PAGES);
   }
   let prefetched = false;
   function prefetchPages() {
     if (prefetched) return;
     prefetched = true;
-    (window.requestIdleCallback || ((fn) => setTimeout(fn, 200)))(() => loadPages().catch(() => { prefetched = false; }));
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 200)))(() => {
+      loadPages().catch(() => { prefetched = false; });
+      const img = new Image();                // the inner-page header photo, so it's ready before the page slides up
+      img.src = $('.sp-bg').getAttribute('src');
+    });
   }
+  // warm the cache as soon as someone heads for the top bar
+  ['pointerover', 'focusin'].forEach((t) => top.addEventListener(t, () => prefetchPages(), { once: true, passive: true }));
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const safeHref = (h) => (/^\[/.test(h) ? '#' : h);
 
+  /* ---------------------------------------------------------------- dialog (project / paper details) */
+  let modalReturn = null;
+  let modalClosing = null;
+  function openModal(content, { returnFocus } = {}) {
+    [modalBox, modalScrim].forEach((el) => el.getAnimations().forEach((a) => a.cancel()));
+    modalClosing = null;
+    modalBody.replaceChildren(content);
+    modalReturn = returnFocus || document.activeElement;
+    modalWrap.hidden = false;
+    modalBox.scrollTop = 0;
+    pageLayer.inert = true;
+    modalScrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+    if (reduced()) {
+      modalBox.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+    } else {                                  // same spring as the speech bubbles
+      const n = CARD_SPRING.values.length - 1;
+      modalBox.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
+        { duration: CARD_SPRING.duration, easing: 'linear' });
+      modalBox.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+    }
+    $('.modal-x', modalWrap).focus({ preventScroll: true });
+    Sound.play('pop');
+  }
+  function closeModal({ restoreFocus = true } = {}) {
+    if (modalWrap.hidden) return Promise.resolve();
+    if (modalClosing) return modalClosing;
+    const a = modalBox.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
+      { duration: 120, easing: 'ease-in', fill: 'forwards' });
+    const b = modalScrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
+    modalClosing = Promise.all([a.finished, b.finished]).catch(() => {}).then(() => {
+      if (!modalClosing) return;              // reopened meanwhile
+      modalClosing = null;
+      modalWrap.hidden = true;
+      a.cancel();
+      b.cancel();
+      modalBody.replaceChildren();
+      pageLayer.inert = false;
+      if (restoreFocus && modalReturn && modalReturn.isConnected) modalReturn.focus({ preventScroll: true });
+    });
+    return modalClosing;
+  }
+  $$('[data-modal-close]', modalWrap).forEach((b) => b.addEventListener('click', () => closeModal()));
+  modalWrap.addEventListener('keydown', (e) => {          // keep focus inside the dialog
+    if (e.key !== 'Tab') return;
+    const f = $$('a[href], button:not([tabindex="-1"]), input, textarea, select', modalWrap).filter((el) => !el.disabled && el.offsetParent !== null);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  });
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+    return Promise.resolve(legacyCopy(text));
+  }
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* nothing else to try */ }
+    ta.remove();
+  }
+
+  // What views.js gets to work with.
+  const ui = {
+    esc,
+    reduced,
+    easeOut: EASE_OUT,
+    go: (id) => { location.hash = '#/' + id; },
+    openModal,
+    closeModal,
+    copy: copyText,
+  };
+
   // Pages are built once and reused (memoised).
   const pageCache = new Map();
+  const isViewPage = (id, pages) => !!(pages && pages[id] && pages[id].view && window.AZZAH_VIEWS && window.AZZAH_VIEWS[pages[id].view]);
+  function buildView(id, pages) {
+    const key = 'view:' + id;
+    if (!pageCache.has(key)) pageCache.set(key, window.AZZAH_VIEWS[pages[id].view](pages[id], ui));
+    return pageCache.get(key);
+  }
   function buildPage(id, pages) {
     if (pageCache.has(id)) return pageCache.get(id);
-    const spot = spotById(id);
-    const data = (pages && pages[id]) || {
-      kicker: titleOf(spot), title: titleOf(spot), intro: $('.cb-desc', cardOf(spot))?.textContent || '', blocks: [], color: '#E3B23C',
+    const given = pages && pages[id];
+    const data = (given && !given.view) ? given : {
+      kicker: (given && given.title) || PAGE_NAME[id], title: (given && given.title) || PAGE_NAME[id],
+      intro: (given && given.subtitle) || '', blocks: [], color: '#E3B23C',
     };
     const blocks = (data.blocks || []).map((b) => {
       const h = b.heading ? `<h2>${esc(b.heading)}</h2>` : '';
@@ -526,7 +580,7 @@
   let mascotReady = false;
   function ensureMascot() {                 // the small child peeks from the page header (cloned once)
     if (mascotReady) return;
-    const svg = $('.spot[data-id="contact"] .fig svg');
+    const svg = $('.spot[data-id="contact"] .fig > svg');
     if (svg) {
       const clone = svg.cloneNode(true);
       clone.querySelectorAll('.hit').forEach((n) => n.remove());
@@ -535,14 +589,39 @@
     mascotReady = true;
   }
 
+  // Put a page into the layer: the Gemini-style layout (header photo, nav, footer) when views.js
+  // has a renderer for it, otherwise the original simple page. Returns what to focus and announce.
+  const spNavLinks = $$('[data-nav]', spPage);
+  function mount(id, pages) {
+    if (isViewPage(id, pages)) {
+      const data = pages[id];
+      classicPage.hidden = true;
+      spPage.hidden = false;
+      spTitle.textContent = data.title;
+      spSub.textContent = data.subtitle || '';
+      spMain.replaceChildren(buildView(id, pages));
+      spNavLinks.forEach((a) => {
+        if (a.dataset.nav === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      });
+      return { kind: 'sp', main: spMain, title: data.title };
+    }
+    spPage.hidden = true;
+    classicPage.hidden = false;
+    pageMain.replaceChildren(buildPage(id, pages));
+    ensureMascot();
+    return { kind: 'classic', main: pageMain, title: $('.pg-title', pageMain).textContent };
+  }
+
   /* ==================================================================== router + zoom transition */
   let currentPage = null;
+  let currentKind = null;
   let originId = null;
   let pageOpen = false;
   let transitioning = false;
   let pendingRoute = false;
   let nextZoom = true;
   let held = [];                          // animations holding the zoomed state while a page is open
+  let zoomed = false;                     // is the (hidden) lawn held at 3x behind the page?
   const baseTitle = document.title;
 
   function go(id, { zoom = true } = {}) {
@@ -551,7 +630,8 @@
     if (location.hash === target) onRoute(); else location.hash = target;
   }
   function parseRoute() {
-    const h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
+    let h = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
+    h = PAGE_ALIAS[h] || h;
     return PAGE_IDS.includes(h) ? h : null;
   }
 
@@ -562,8 +642,7 @@
     transitioning = true;
     const zoom = nextZoom;
     nextZoom = true;
-    closeSheet({ restoreFocus: false });
-    setMenu(false);
+    closeModal({ restoreFocus: false });
     const fromList = !list.hidden;
     setList(false);
     deactivate(activeSpot, true);
@@ -580,10 +659,12 @@
   window.addEventListener('hashchange', onRoute);
 
   function zoomOrigin(spot) {
+    const s = scene.getBoundingClientRect();
+    const k = s.width / (scene.offsetWidth || s.width || 1);   // the scene may be scaled (list view), origins are unscaled
+    if (!spot) return `${(s.width / 2 / k).toFixed(1)}px ${(s.height / 2 / k).toFixed(1)}px`;
     const hit = $('.hit', spot) || figOf(spot);
     const r = hit.getBoundingClientRect();
-    const s = scene.getBoundingClientRect();
-    return `${(r.left + r.width / 2 - s.left).toFixed(1)}px ${(r.top + r.height / 2 - s.top).toFixed(1)}px`;
+    return `${((r.left + r.width / 2 - s.left) / k).toFixed(1)}px ${((r.top + r.height / 2 - s.top) / k).toFixed(1)}px`;
   }
   function baseTransform() {
     scene.getAnimations().forEach((a) => a.cancel());
@@ -591,80 +672,98 @@
     return t && t !== 'none' ? t + ' ' : '';
   }
   function setLawnInert(on) { [scene, top, bottom].forEach((el) => { el.inert = on; }); }
+  function finishOpen(id, m) {
+    currentPage = id;
+    currentKind = m.kind;
+    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
+    document.title = `${m.title} — Azzah`;
+    m.main.focus({ preventScroll: true });
+    announce(`${m.title} page`);
+  }
 
   async function enterPage(id, zoom) {
-    const spot = spotById(id);
-    originId = id;
+    const spot = originSpot(id);
+    originId = spot ? id : null;
+    if (!opener) {                          // e.g. a card link or the Contact child: return focus there
+      const a = document.activeElement;
+      if (a && a !== document.body && lawn.contains(a) && !pageLayer.contains(a)) opener = a;
+    }
     const pagesP = loadPages().catch(() => null);
-    const motion = zoom && !reduced();
+    const motion = zoom && !!spot && !reduced();    // zoom into the person; pages without one just fade
     root.classList.add('zooming');
     scene.style.transformOrigin = zoomOrigin(spot);
     const base = baseTransform();
-    scene.style.willChange = 'transform';
 
-    held.forEach((a) => a.cancel());
+    held.forEach((anim) => anim.cancel());
     held = [];
+    zoomed = false;
     if (motion) {
+      scene.style.willChange = 'transform';
       held.push(scene.animate([{ transform: base + 'scale(1)' }, { transform: base + 'scale(3)' }],
         { duration: 520, easing: EASE_IN_OUT, fill: 'forwards' }));
       held.push(wash.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380, delay: 140, easing: EASE_IN_OUT, fill: 'forwards' }));
+      zoomed = true;
     } else {
-      if (!reduced()) held.push(scene.animate([{ transform: base + 'scale(3)' }], { duration: 0, fill: 'forwards' }));
       held.push(wash.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out', fill: 'forwards' }));
     }
     held.push(...[top, bottom].map((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' })));
 
     const pages = await pagesP;
-    pageMain.replaceChildren(buildPage(id, pages));
-    ensureMascot();
+    const m = mount(id, pages);
     pageLayer.scrollTop = 0;
     pageLayer.hidden = false;
     const pageIn = pageLayer.animate(
       motion ? [{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'none' }] : [{ opacity: 0 }, { opacity: 1 }],
       { duration: motion ? 300 : 260, delay: motion ? 400 : 120, easing: EASE_IN_OUT, fill: 'backwards' });
-    await Promise.all([pageIn.finished, ...held.map((a) => a.finished)]);
+    await Promise.all([pageIn.finished, ...held.map((anim) => anim.finished)]);
 
+    // Faded in (nav, menu): aim the hidden lawn at the page's person now, under the opaque wash,
+    // so "Back to the lawn" still zooms out of them.
+    if (!zoomed && spot && !reduced()) {
+      held.push(scene.animate([{ transform: base + 'scale(3)' }], { duration: 0, fill: 'forwards' }));
+      zoomed = true;
+    }
     scene.style.willChange = '';
     scene.style.visibility = 'hidden';
     root.classList.remove('zooming');
     root.classList.add('page-open');
     setLawnInert(true);
-    currentPage = id;
     pageOpen = true;
     updatePause();
-    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
-    document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
-    pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spot)} page`);
+    finishOpen(id, m);
   }
 
   async function swapPage(id) {
     const pages = await loadPages().catch(() => null);
-    const out = pageMain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
-    await out.finished;
-    pageMain.replaceChildren(buildPage(id, pages));
+    const sameLayout = currentKind === 'sp' && isViewPage(id, pages);
+    // between two Gemini-style pages only the title and body change; otherwise the whole page cross-fades
+    const outEls = sameLayout ? [spIntro, spMain] : [currentKind === 'sp' ? spPage : classicPage];
+    const outs = outEls.map((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' }));
+    await Promise.all(outs.map((anim) => anim.finished));
+    const m = mount(id, pages);
     pageLayer.scrollTop = 0;
-    out.cancel();
-    await pageMain.animate([{ opacity: 0, transform: reduced() ? 'none' : 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 240, easing: EASE_OUT }).finished;
-    currentPage = id;
-    originId = id;
-    // keep the zoom aimed at the new character for the trip back
-    scene.style.visibility = '';
-    held.forEach((a) => a.cancel());
-    scene.style.transformOrigin = zoomOrigin(spotById(id));
-    held = [scene.animate([{ transform: baseTransform() + (reduced() ? 'scale(1)' : 'scale(3)') }], { duration: 0, fill: 'forwards' }),
-      wash.animate([{ opacity: 1 }], { duration: 0, fill: 'forwards' }),
-      ...[top, bottom].map((el) => el.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' }))];
-    scene.style.visibility = 'hidden';
-    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
-    document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
-    pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spotById(id))} page`);
+    outs.forEach((anim) => anim.cancel());
+    const inEls = sameLayout ? [spIntro, spMain] : [m.kind === 'sp' ? spPage : classicPage];
+    await Promise.all(inEls.map((el) => el.animate([{ opacity: 0, transform: reduced() ? 'none' : 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 240, easing: EASE_OUT }).finished));
+    // keep the zoom aimed at the new page's person for the trip back (a page with nobody keeps the last one)
+    const spot = originSpot(id);
+    if (spot) {
+      originId = id;
+      scene.style.visibility = '';
+      held.forEach((anim) => anim.cancel());
+      scene.style.transformOrigin = zoomOrigin(spot);
+      held = [scene.animate([{ transform: baseTransform() + (reduced() ? 'scale(1)' : 'scale(3)') }], { duration: 0, fill: 'forwards' }),
+        wash.animate([{ opacity: 1 }], { duration: 0, fill: 'forwards' }),
+        ...[top, bottom].map((el) => el.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' }))];
+      zoomed = !reduced();
+      scene.style.visibility = 'hidden';
+    }
+    finishOpen(id, m);
   }
 
   async function exitPage() {
-    const spot = spotById(originId || currentPage);
+    const spot = originSpot(originId);
     const motion = !reduced();
     scene.style.visibility = '';
     setLawnInert(false);
@@ -673,36 +772,44 @@
     pageOpen = false;
     updatePause();
 
-    const scaleNow = held.length && motion ? 3 : 1;
+    const scaleNow = zoomed && motion ? 3 : 1;
     const base = baseTransform();             // also cancels the held scene animation
-    scene.style.willChange = 'transform';
+    if (spot) scene.style.transformOrigin = zoomOrigin(spot);   // re-aim, in case the screen was resized or rotated meanwhile
+    if (scaleNow !== 1) scene.style.willChange = 'transform';
     const anims = [
       pageLayer.animate(motion ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(24px)' }] : [{ opacity: 1 }, { opacity: 0 }],
         { duration: 220, easing: EASE_IN_OUT, fill: 'forwards' }),
-      scene.animate([{ transform: base + `scale(${scaleNow})` }, { transform: base + 'scale(1)' }],
-        { duration: motion ? 520 : 1, delay: motion ? 180 : 0, easing: EASE_IN_OUT, fill: 'backwards' }),
       wash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion ? 420 : 260, delay: motion ? 260 : 120, easing: EASE_IN_OUT, fill: 'both' }),
       ...[top, bottom].map((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: motion ? 480 : 200, easing: 'ease-out', fill: 'both' })),
     ];
-    held.forEach((a) => a.cancel());
+    if (scaleNow !== 1) {
+      anims.push(scene.animate([{ transform: base + `scale(${scaleNow})` }, { transform: base + 'scale(1)' }],
+        { duration: 520, delay: 180, easing: EASE_IN_OUT, fill: 'backwards' }));
+    }
+    held.forEach((anim) => anim.cancel());
     held = [];
-    await Promise.all(anims.map((a) => a.finished));
+    zoomed = false;
+    await Promise.all(anims.map((anim) => anim.finished));
     pageLayer.hidden = true;
-    anims.forEach((a) => a.cancel());
+    anims.forEach((anim) => anim.cancel());
     scene.style.willChange = '';
     scene.style.transformOrigin = '';
     root.classList.remove('zooming');
     currentPage = null;
+    currentKind = null;
     document.title = baseTitle;
-    if (spot) figOf(spot).focus({ preventScroll: true });
+    // focus goes back to whatever opened the page (nav link, list row, Contact child), else the menu button
+    const fig = spot && figOf(spot);
+    const back = (opener && opener.isConnected && opener.offsetParent !== null && opener) || visibleToggle() || (fig && fig.matches('a') && fig) || logo;
+    if (back) back.focus({ preventScroll: true });
+    opener = null;
     announce('Back on the lawn');
   }
 
   /* ==================================================================== Escape */
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!sheetWrap.hidden) closeSheet();
-    else if (lawn.classList.contains('nav-open')) { setMenu(false); menuBtn && menuBtn.focus(); }
+    if (!modalWrap.hidden) closeModal();
     else if (!list.hidden) setList(false);
     else if (activeSpot) { const f = figOf(activeSpot); deactivate(activeSpot); f.focus(); }
     else if (currentPage) location.hash = '#/';
@@ -719,7 +826,7 @@
     }
     const anims = [];
     const add = (el, keyframes, opts) => { if (el) anims.push(el.animate(keyframes, { fill: 'both', easing: EASE_OUT, ...opts })); };
-    $$('.grass-layer').forEach((el) => add(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }));
+    $$('.grass-layer, .edge').forEach((el) => add(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }));
     $$('.shadows-in').forEach((el) => add(el, [{ opacity: 0, transform: 'translate(70px,30px)' }, { opacity: 1, transform: 'translate(0,0)' }], { duration: 650, delay: 300 }));
     $$('.canopy').forEach((el) => add(el, [{ opacity: 0, transform: 'translate(30px,-24px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 300 }));
     const ordered = spots.slice().sort((a, b) => {
@@ -745,7 +852,7 @@
 
   /* ==================================================================== pause when hidden / off-screen */
   let lawnVisible = true;
-  function updatePause() { lawn.classList.toggle('is-paused', !lawnVisible || pageOpen); }
+  function updatePause() { lawn.classList.toggle('is-paused', !lawnVisible || pageOpen || !list.hidden); }
   document.addEventListener('visibilitychange', () => root.classList.toggle('is-hidden', document.hidden));
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
@@ -808,8 +915,8 @@
     const t = e.target instanceof Element ? e.target : null;
     if (!t) return;
     const fig = t.closest('.fig');
-    if (fig && !isMobile() && !pageOpen) setCursorMode('hot', fig.dataset.label);
-    else if (t.closest('input, textarea')) cursor.classList.remove('is-visible');
+    if (fig && fig.dataset.label && !isMobile() && !pageOpen) setCursorMode('hot', fig.dataset.label);
+    else if (t.closest('input, textarea, select')) cursor.classList.remove('is-visible');
     else {
       cursor.classList.add('is-visible');
       setCursorMode(t.closest('a[href], button, label, summary') ? 'link' : 'dot');

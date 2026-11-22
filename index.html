@@ -21,7 +21,7 @@
 <script>
 /* Runs before first paint: pick the mood and decide whether to play the entrance, so nothing flashes. */
 (function () {
-  var d = document.documentElement, mood = null, ids = 'about|projects|papers|socials|playground|blog|hobbies|contact';
+  var d = document.documentElement, mood = null, ids = 'about|projects|papers|socials|playground|blog|hobbies|contact|timeline';
   try { mood = localStorage.getItem('azzah:mood'); } catch (e) {}
   if (mood !== 'day' && mood !== 'golden' && mood !== 'night') {
     var h = new Date().getHours();
@@ -34,9 +34,10 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair:wght@600&amp;family=Poppins:wght@300;400;500;600&amp;family=Source+Code+Pro:wght@400;500&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="motion.css">
+<link rel="stylesheet" href="pages.css">
 </head>
 <body>
 <a class="skip" href="#section-list" data-open-list>Skip to the list of sections</a>
@@ -44,26 +45,22 @@
 <h1 class="sr-only">Azzah, developer and researcher</h1>
 
 <header class="top">
-  <a class="logo" href="#home" aria-label="Azzah, home">a.</a>
+  <a class="logo" href="#/" aria-label="Azzah, home">A.</a>
   <nav aria-label="Primary" id="primary-nav">
     <ul class="nav">
-      <li><a href="#home" aria-current="page">Home</a></li>
-      <li><a href="#gallery">Gallery</a></li>
-      <li><a href="#timeline">Timeline</a></li>
+      <li><a href="#/" aria-current="page">Home</a></li>
+      <li><a href="#/projects">Gallery</a></li>
+      <li><a href="#/timeline">Timeline</a></li>
     </ul>
   </nav>
   <div class="top-right">
+    <button class="tb-pill list-pill" type="button" data-list-toggle aria-pressed="false" aria-controls="section-list"><svg class="ic-list" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg><svg class="ic-park" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l6 8.5h-3l4 6H5l4-6H6z"/><path d="M12 17v4.5"/></svg><span data-list-label>List view</span></button>
     <button class="mood-btn" type="button" data-mood-toggle aria-label="Light: day. Switch to golden hour"><svg class="mi mi-day" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><svg class="mi mi-golden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17a7 7 0 0 1 14 0"/><path d="M2.5 17h19M12 4.5v3M4.9 9.4l1.6 1.2M19.1 9.4l-1.6 1.2M8 20.5h8"/></svg><svg class="mi mi-night" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg></button>
-    <a class="pill" href="#research"><span class="pill-dot" aria-hidden="true"></span>Research</a>
-    <form class="search" role="search" action="#" onsubmit="return false">
-      <label class="sr-only" for="site-search">Search the site</label>
-      <input id="site-search" type="search" placeholder="Search" autocomplete="off">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A8A9A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-    </form>
+    <a class="tb-pill" href="#/about">creative developer</a>
   </div>
   <div class="m-actions">
     <button class="m-btn mood-btn" type="button" data-mood-toggle aria-label="Light: day. Switch to golden hour"><svg class="mi mi-day" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><svg class="mi mi-golden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17a7 7 0 0 1 14 0"/><path d="M2.5 17h19M12 4.5v3M4.9 9.4l1.6 1.2M19.1 9.4l-1.6 1.2M8 20.5h8"/></svg><svg class="mi mi-night" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg></button>
-    <button class="m-btn" type="button" data-list-toggle aria-pressed="false" aria-controls="section-list" aria-label="List view"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg></button>
+    <button class="m-btn" type="button" data-list-toggle aria-pressed="false" aria-controls="section-list" aria-label="List view"><svg class="ic-list" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg><svg class="ic-park" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l6 8.5h-3l4 6H5l4-6H6z"/><path d="M12 17v4.5"/></svg></button>
     <button class="m-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="primary-nav" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </div>
 </header>
@@ -111,6 +108,9 @@
 
 <div class="sun" aria-hidden="true"></div>
 <div class="night-tint" aria-hidden="true"></div>
+<div class="list-scrim" aria-hidden="true"></div>
+<div class="edge edge--top" aria-hidden="true"></div>
+<div class="edge edge--bottom" aria-hidden="true"></div>
 <div class="wash" aria-hidden="true"></div>
 <svg class="grain" width="100%" height="100%" aria-hidden="true" focusable="false">
   <filter id="grainNoise" x="0" y="0" width="100%" height="100%">
@@ -121,38 +121,73 @@
 </svg>
 
 <section class="list" id="section-list" aria-label="All sections" hidden>
-  <div class="list-head">
-    <h2>Everyone on the lawn</h2>
-    <button class="list-x" type="button" data-list-close aria-label="Close list view"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  </div>
-  <ul>
-<li><button type="button" class="li-row" data-open="about"><span class="li-dot" style="background:#E3B23C"></span><span class="li-text"><strong>About me</strong><small>Who I am, what I build, and the questions I keep chasing.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="projects"><span class="li-dot" style="background:#2E8C8A"></span><span class="li-text"><strong>Projects</strong><small>Featured work: tools, systems and things I’ve shipped.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="papers"><span class="li-dot" style="background:#E2604B"></span><span class="li-text"><strong>Papers &amp; Publications</strong><small>My latest research, newest first.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="socials"><span class="li-dot" style="background:#4C8FD6"></span><span class="li-text"><strong>Socials</strong><small>Find me on GitHub, LinkedIn, X, Instagram or email.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="playground"><span class="li-dot" style="background:#E2604B"></span><span class="li-text"><strong>Experiments / Playground</strong><small>Prototypes, sketches and half-finished toys.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="blog"><span class="li-dot" style="background:#2E8C8A"></span><span class="li-text"><strong>Blog / Writing</strong><small>Notes and essays on research and building.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="hobbies"><span class="li-dot" style="background:#E3B23C"></span><span class="li-text"><strong>Hobbies &amp; Fun facts</strong><small>The off-the-clock stuff, plus a few fun facts.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-<li><button type="button" class="li-row" data-open="contact"><span class="li-dot" style="background:#3E9B4F"></span><span class="li-text"><strong>Contact</strong><small>Email and current availability.</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></li>
-  </ul>
+  <nav aria-label="All portfolio sections">
+    <ul>
+      <li><button type="button" class="li-row" data-open="about"><span class="li-title">About</span><span class="li-sub">Bio &amp; background</span></button></li>
+      <li><button type="button" class="li-row" data-open="projects"><span class="li-title">Projects</span><span class="li-sub">Selected web tools</span></button></li>
+      <li><button type="button" class="li-row" data-open="papers"><span class="li-title">Papers</span><span class="li-sub">Research &amp; writing</span></button></li>
+      <li><button type="button" class="li-row" data-open="socials"><span class="li-title">Socials</span><span class="li-sub">Links &amp; profiles</span></button></li>
+      <li><button type="button" class="li-row" data-open="blog"><span class="li-title">Blog</span><span class="li-sub">Field notes &amp; essays</span></button></li>
+      <li><button type="button" class="li-row" data-open="playground"><span class="li-title">Playground</span><span class="li-sub">Small shaders &amp; toys</span></button></li>
+      <li><button type="button" class="li-row" data-open="hobbies"><span class="li-title">Hobbies</span><span class="li-sub">Guitar, cats &amp; parks</span></button></li>
+      <li><button type="button" class="li-row" data-open="contact"><span class="li-title">Contact</span><span class="li-sub">Say hello</span></button></li>
+    </ul>
+  </nav>
 </section>
 
 <footer class="bottom">
   <div class="bl"><a href="#resume">Resume</a><span class="rule" aria-hidden="true"></span><a href="#contact">Contact</a></div>
   <div class="br">
     <p class="tagline">Azzah — developer &amp; researcher</p>
-    <button class="listbtn" type="button" data-list-toggle aria-pressed="false" aria-controls="section-list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg>List view</button>
     <button class="sound-btn" type="button" data-sound-toggle aria-pressed="false" aria-label="Sound effects" title="Sound effects (off)"><svg class="ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M22 9l-6 6M16 9l6 6"/></svg><svg class="ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
   </div>
 </footer>
 
 <div class="page-layer" id="page-layer" hidden>
-  <div class="page-shell">
+  <div class="page-shell" id="classic-page">
     <header class="page-head">
       <a class="back" href="#/"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Back to the lawn</span></a>
       <div class="mascot" aria-hidden="true"></div>
     </header>
     <article class="page-main" id="page-main" tabindex="-1"></article>
+  </div>
+  <div class="sp" id="sp-page" hidden>
+    <header class="sp-head">
+      <img class="sp-bg" src="images/lawn-header.jpg" alt="" width="1376" height="768" decoding="async">
+      <div class="sp-warm" aria-hidden="true"></div>
+      <div class="sp-shade" aria-hidden="true"></div>
+      <div class="sp-shade sp-shade--top" aria-hidden="true"></div>
+      <div class="sp-inner">
+        <div class="sp-bar">
+          <div class="sp-left">
+            <a class="sp-logo" href="#/" aria-label="Azzah, home">A.</a>
+            <nav aria-label="Primary">
+              <ul class="sp-nav">
+                <li><a href="#/" data-nav="home">Home</a></li>
+                <li><a href="#/projects" data-nav="projects">Gallery</a></li>
+                <li><a href="#/timeline" data-nav="timeline">Timeline</a></li>
+              </ul>
+            </nav>
+          </div>
+          <div class="sp-right">
+            <button class="mood-btn" type="button" data-mood-toggle aria-label="Light: day. Switch to golden hour"><svg class="mi mi-day" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg><svg class="mi mi-golden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17a7 7 0 0 1 14 0"/><path d="M2.5 17h19M12 4.5v3M4.9 9.4l1.6 1.2M19.1 9.4l-1.6 1.2M8 20.5h8"/></svg><svg class="mi mi-night" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg></button>
+            <a class="tb-pill" href="#/about">creative developer</a>
+          </div>
+        </div>
+        <div class="sp-intro">
+          <a class="sp-back" href="#/"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>Back to the lawn</span></a>
+          <h1 class="sp-title" id="sp-title"></h1>
+          <p class="sp-sub" id="sp-sub"></p>
+        </div>
+      </div>
+    </header>
+    <article class="sp-main" id="sp-main" tabindex="-1"></article>
+    <footer class="sp-foot">
+      <div class="sp-foot-in">
+        <div class="sp-foot-links"><a href="#/socials">GitHub</a><a href="#/contact">Email</a></div>
+        <p>azzah — building calm, sunny software</p>
+      </div>
+    </footer>
   </div>
 </div>
 <p class="sr-only" id="announcer" aria-live="polite"></p>
@@ -164,6 +199,14 @@
     <h2 class="sr-only" id="sheet-title">Section</h2>
     <button class="sheet-x" type="button" data-sheet-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="sheet-body" id="sheet-body"></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="modal-wrap" hidden>
+  <button class="modal-scrim" type="button" data-modal-close tabindex="-1" aria-label="Close"></button>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="modal-x" type="button" data-modal-close aria-label="Close dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="modal-body" id="modal-body"></div>
   </div>
 </div>
 

@@ -6,8 +6,11 @@ A plain HTML/CSS/JS site with no build step. Open `index.html`, or upload the fo
 index.html            markup and the inline-SVG characters, plus favicon and Open Graph tags
 styles.css            layout (unchanged apart from the mobile breakpoint, now 768px)
 motion.css            all animation: moods, idle loops, hover reactions, entrance, transitions, reduced motion
-script.js             motion and interaction: zoom page transitions, spring popups, entrance, moods, cursor, sound
+script.js             motion and interaction: zoom page transitions, spring popups, entrance, moods, list view, cursor, sound
 pages.js              inner-page content, loaded only the first time someone opens a page
+views.js              layouts for the Gallery, Timeline, About, Papers, Field Notes and Playground pages and their pop-ups (loaded with pages.js)
+pages.css             styles for those pages and pop-ups
+images/               header photo, portrait and project thumbnails used by those pages
 favicon.svg, apple-touch-icon.png, og-image.jpg
 ```
 
@@ -36,7 +39,8 @@ To see the first-visit entrance again, close the tab and open a new one; it play
 | What | Where | How |
 |---|---|---|
 | Popup card placeholders (paper titles, email, availability) | `index.html` | Search for `[` and replace each bracketed text. |
-| Inner-page content | `pages.js` | Replace everything in `[brackets]`. Links written like `'[https://github.com/…]'` become your real URL, e.g. `'https://github.com/azzah'`. |
+| Inner-page content | `pages.js` | Projects (Gallery), Papers, Timeline, Field Notes, Playground and About hold sample text: edit it in place. In Socials, Hobbies and Contact, replace everything in `[brackets]`. Links written like `'[https://github.com/…]'` become your real URL, e.g. `'https://github.com/azzah'`. |
+| Page images | `images/` | Replace a file keeping its name, or point `image` / `photo` in `pages.js` at a new one. |
 | Email links | `index.html`, `pages.js` | Change `mailto:` to `mailto:you@yourmail.com`. |
 | Social icons on the Socials card | `index.html` | Each icon is `<a class="cb-icon" href="#socials" …>`. Put the real profile URL in `href`. To open it in a new tab, add `target="_blank" rel="noopener"`. |
 | Page link and share image | `index.html`, in `<head>` | Set `og:url` to your live address, e.g. `https://azzah.dev/`. Set `og:image` to the full address of the image, e.g. `https://azzah.dev/og-image.jpg`. Social sites ignore relative paths like `og-image.jpg`. |
@@ -93,6 +97,9 @@ The site is static, so there is nothing to build and any static host works.
   - Picnic group: sways together.
   - Child: waves both arms.
 - **Click a person:** the lawn zooms about 3× into them and fades to a soft green, then the inner page slides up (about 700ms). "Back to the lawn", the browser's back button or Esc reverses it. Pages live at `#/projects`, `#/papers` and so on, so they can be linked and bookmarked.
+- **Top bar:** Gallery opens `#/projects` and "creative developer" opens `#/about`, zooming into the sunbather and the guitarist. Timeline (`#/timeline`) has no person on the lawn, so it fades in. Between pages, only the title and body cross-fade.
+- **List view:** the "List view" pill (or the L key) blurs the lawn behind a dark scrim and shows every section as a two-column directory. "Lawn view", L or Esc brings the lawn back.
+- **Project and paper details:** open in a dialog that springs in like the lawn's popup cards. Esc or the scrim closes it.
 - **Sun/moon button (top right):** cycles Day → Golden hour → Night over 1.2s. Golden hour brings warm grass and long diagonal orange-tinted shadows. Night brings teal grass, blue shadows, fireflies and a warm rim light on the characters. The choice is saved; first-time visitors get the mood that matches their local time of day.
 - **Touch:** tapping a person opens a bottom sheet. On phones (under 768px) the lawn scrolls vertically and the nav collapses into a menu icon.
 - **Reduced motion:** loops, zooms and springs are switched off and only simple fades remain.

@@ -16,14 +16,19 @@ body{font-family:Poppins,"Poppins Fallback",Arial,sans-serif}
   --grass:#8DB33F; --shade:#5E8A2B; --dapple:#8DB33F; --tuft:#7DA236;
   --page-bg:#E7EED3;
   --cast:none; --sun-op:0; --night-op:0; --fly-op:0;
+  --canopy:#2E4200;   /* dark fade behind the nav, footer and list view */
+  --sp-grade:sepia(0) saturate(1) brightness(1) hue-rotate(0deg);   /* inner-page header photo */
 }
 html[data-mood="golden"]{
   --grass:#A6B03B; --shade:#6F6A25; --dapple:#B2B747; --tuft:#97A034;
   --cast:skewX(-24deg) scale(1.2,1.04); --sun-op:1;
+  --sp-grade:sepia(.28) saturate(1.22) brightness(.95) hue-rotate(-14deg);
 }
 html[data-mood="night"]{
   --grass:#2D5A4B; --shade:#1C3A57; --dapple:#356656; --tuft:#27503F;
   --night-op:1; --fly-op:1;
+  --canopy:#0B2430;
+  --sp-grade:sepia(0) saturate(.85) brightness(.62) hue-rotate(18deg);
 }
 html .lawn{--sx:3px;--sy:5px;--sc:rgba(40,66,14,.30);--rim:rgba(255,196,120,0);--rim-r:0px;--char-b:1;--leaf-b:1;--leaf-sc:rgba(30,50,10,.22)}
 html[data-mood="golden"] .lawn{--sx:17px;--sy:9px;--sc:rgba(120,70,12,.34);--char-b:1.03;--leaf-sc:rgba(110,64,10,.24)}
@@ -61,8 +66,8 @@ html:not([data-mood="night"]) .firefly{animation-play-state:paused}
 
 /* sun / sunset / moon toggle */
 .mood-btn{position:relative}
-.top-right .mood-btn{width:44px;height:44px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#1F5BA0;cursor:pointer;box-shadow:0 2px 10px rgba(28,44,10,.12)}
-.top-right .mood-btn:hover{background:#F2F7FD}
+.top-right .mood-btn,.sp-right .mood-btn{width:44px;height:44px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:#1F5BA0;cursor:pointer;box-shadow:0 2px 10px rgba(28,44,10,.12)}
+.top-right .mood-btn:hover,.sp-right .mood-btn:hover{background:#F2F7FD}
 .mood-btn .mi{position:absolute;left:50%;top:50%;margin:-9px 0 0 -9px;opacity:0;transform:rotate(-90deg) scale(.5);transition:opacity .45s ease,transform .6s cubic-bezier(.3,1.4,.5,1)}
 html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood="night"] .mi-night{opacity:1;transform:none}
 
@@ -200,26 +205,29 @@ html[data-mood="day"] .mi-day,html[data-mood="golden"] .mi-golden,html[data-mood
    ========================================================================== */
 html.intro,html.intro body{background-color:#EEEADB}
 html.intro .grass-layer,html.intro .shadows-in,html.intro .canopy,html.intro .spot,
-html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
+html.intro .top,html.intro .bottom,html.intro .m-hint,html.intro .edge{opacity:0}
 
 /* ==========================================================================
-   6. LIST VIEW replaces the illustration
+   6. LIST VIEW: the lawn blurs behind a dark canopy scrim, the directory rises in
    ========================================================================== */
-.lawn{transition:background-color .35s ease}
-.scene{transition:opacity .35s ease,visibility 0s linear 0s}
-.lawn.list-open{background-color:var(--page-bg)}
-.lawn.list-open .scene,.lawn.list-open .sun,.lawn.list-open .night-tint{opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s linear .35s}
-.lawn.list-open .list{left:50%;top:120px;transform:translateX(-50%);width:min(560px,calc(100% - 32px));max-height:calc(100% - 220px)}
+/* dark fades along the top and bottom edges keep the white nav and footer legible */
+.edge{position:absolute;left:0;right:0;z-index:28;pointer-events:none;background-color:var(--canopy);transition:background-color var(--mood-t) var(--mood-ease)}
+.edge--top{top:0;height:128px;-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent)}
+.edge--bottom{bottom:0;height:112px;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent);mask-image:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,.65) 50%,transparent)}
+.list-scrim{position:absolute;inset:0;z-index:27;pointer-events:none;background-color:var(--canopy);opacity:0;
+  transition:opacity .25s ease,background-color var(--mood-t) var(--mood-ease)}
+.lawn.list-open .list-scrim{opacity:.65}
+.scene{transition:filter .3s ease-out,transform .3s ease-out}
+@media (min-width:768px){
+  .lawn.list-open .scene{filter:blur(12px);transform:translate(-50%,-50%) scale(1.05);pointer-events:none}
+}
 .list:not([hidden]){animation:panelIn .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes panelIn{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
 
 /* ==========================================================================
    7. CONTRAST — backing pills keep text over grass at WCAG AA in every mood
    ========================================================================== */
-.logo,.nav a,.bl,.tagline,.m-hint{background:rgba(16,30,6,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-shadow:none;border-radius:999px}
-.logo{justify-content:center;padding:0 14px}
-.nav a{padding:0 16px;opacity:1}
-.nav{gap:12px}
+.bl,.tagline,.m-hint{background:rgba(16,30,6,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);text-shadow:none;border-radius:999px}
 .bl{padding:0 18px;color:#fff}
 .tagline{padding:8px 14px;margin:0}
 .m-hint{padding:6px 12px}
@@ -264,9 +272,11 @@ html.intro .top,html.intro .bottom,html.intro .m-hint{opacity:0}
 @media (max-width:767.98px){
   .sun,.night-tint,.grain{position:fixed}
   .lawn{overflow-x:clip}
-  .lawn.list-open .scene{display:none}
+  .lawn.list-open .scene,.lawn.list-open .m-hint{display:none}
+  .lawn.list-open .bl,.lawn.list-open .tagline{visibility:hidden}   /* the footer would sit under the full-screen list */
   .lawn.list-open{min-height:100vh}
-  .lawn.list-open .list{left:12px;right:12px;top:76px;transform:none;width:auto}
+  .edge--top{position:fixed;height:80px;z-index:39;-webkit-mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent);mask-image:linear-gradient(rgba(0,0,0,.9),rgba(0,0,0,.55) 50%,transparent)}
+  .edge--bottom,.list-scrim{display:none}
   .lawn.nav-open .nav{display:flex;flex-direction:column;gap:4px;position:fixed;top:72px;right:12px;z-index:55;padding:8px;border-radius:16px;
     background:rgba(255,255,255,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 18px 40px rgba(28,44,10,.25);animation:panelIn .25s cubic-bezier(.2,.8,.2,1)}
   .lawn.nav-open .nav a{min-width:160px;padding:0 16px;border-radius:10px;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:#16210D}
@@ -284,8 +294,14 @@ html.is-hidden *,html.is-hidden *::after{animation-play-state:paused!important}
 /* ==========================================================================
    11. REDUCED MOTION — no loops, no transform transitions, simple fades only
    ========================================================================== */
+@media (min-width:768px) and (prefers-reduced-motion: reduce){
+  .lawn.list-open .scene{transform:translate(-50%,-50%)}
+}
 @media (prefers-reduced-motion: reduce){
   .scene *,.scene *::after,.grain,.mascot svg,.mascot .wave,.list:not([hidden]),.lawn.nav-open .nav{animation:none!important}
+  .scene{transition-property:filter}
+  .li-title{transition:none}
+  .li-row:hover .li-title{transform:none}
   .fig svg,.fig::after,.shadow-cast,.mood-btn .mi,.cb-icon,.pg-links a,.back svg{transition-property:opacity,filter!important}
   .spot.is-active .fig svg{transform:none}
   .spot.is-active .fig::after{transform:none}

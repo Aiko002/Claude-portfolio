@@ -24,6 +24,17 @@
   const wash = $('.wash');
   const pageLayer = $('#page-layer');
   const pageMain = $('#page-main');
+  const classicPage = $('#classic-page');
+  const spPage = $('#sp-page');
+  const spMain = $('#sp-main');
+  const spIntro = $('.sp-intro', spPage);
+  const spTitle = $('#sp-title');
+  const spSub = $('#sp-sub');
+  const modalWrap = $('#modal-wrap');
+  const modalBox = $('.modal', modalWrap);
+  const modalBody = $('#modal-body');
+  const modalScrim = $('.modal-scrim', modalWrap);
+  const logo = $('.top .logo');
   const mascot = $('.mascot');
   const announcer = $('#announcer');
 
@@ -35,7 +46,7 @@
 
   const EASE_IN_OUT = 'cubic-bezier(.65,0,.35,1)';
   const EASE_OUT = 'cubic-bezier(.2,.8,.2,1)';
-  const PAGE_IDS = spots.map((s) => s.dataset.id);
+  const PAGE_IDS = spots.map((s) => s.dataset.id).concat('timeline');   // timeline has no character on the lawn
   const spotById = (id) => spots.find((s) => s.dataset.id === id);
   const figOf = (spot) => $('.fig', spot);
   const cardOf = (spot) => $('.card', spot);
@@ -434,24 +445,34 @@
   const listToggles = $$('[data-list-toggle]');
   function setList(open) {
     if (open === !list.hidden) return;
+    const hadFocus = list.contains(document.activeElement);
     list.hidden = !open;
     lawn.classList.toggle('list-open', open);
+    scene.inert = open;                     // characters can't be hovered or tabbed to behind the list
     listToggles.forEach((b) => b.setAttribute('aria-pressed', String(open)));
+    $$('[data-list-label]').forEach((l) => { l.textContent = open ? 'Lawn view' : 'List view'; });
+    updatePause();
     if (open) {
       deactivate(activeSpot, true);
       setMenu(false);
+      prefetchPages();
       const first = $('.li-row', list);
       if (first) first.focus({ preventScroll: true });
+    } else if (hadFocus) {
+      const visible = listToggles.find((b) => b.offsetParent !== null);
+      if (visible) visible.focus({ preventScroll: true });
     }
   }
   listToggles.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setList(list.hidden); }));
-  $('[data-list-close]').addEventListener('click', () => {
-    setList(false);
-    const visible = listToggles.find((b) => b.offsetParent !== null);
-    if (visible) visible.focus();
-  });
   $('[data-open-list]').addEventListener('click', (e) => { e.preventDefault(); setList(true); });
   $$('[data-open]', list).forEach((row) => row.addEventListener('click', () => go(row.dataset.open, { zoom: false })));
+  // "L" toggles list view on the lawn (not while typing, on a page, or with a dialog open)
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() !== 'l' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (pageOpen || transitioning || !modalWrap.hidden || !sheetWrap.hidden) return;
+    setList(list.hidden);
+  });
 
   const menuBtn = $('[data-menu-toggle]');
   function setMenu(open) {
@@ -466,38 +487,136 @@
   mqMobile.addEventListener('change', () => { deactivate(activeSpot, true); closeSheet({ restoreFocus: false }); setMenu(false); });
 
   /* ==================================================================== inner pages (lazy) */
-  let pagesPromise = null;
-  function loadPages() {
-    if (window.AZZAH_PAGES) return Promise.resolve(window.AZZAH_PAGES);
-    if (!pagesPromise) {
-      pagesPromise = new Promise((resolve, reject) => {
+  // pages.js holds the content, views.js draws the Gallery / Timeline / About / Papers / Field Notes / Playground pages.
+  const scriptCache = new Map();
+  function loadScript(src) {
+    if (!scriptCache.has(src)) {
+      scriptCache.set(src, new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = 'pages.js';
+        s.src = src;
         s.async = true;
-        s.onload = () => resolve(window.AZZAH_PAGES);
-        s.onerror = () => { pagesPromise = null; reject(new Error('pages.js failed to load')); };
+        s.onload = resolve;
+        s.onerror = () => { scriptCache.delete(src); reject(new Error(src + ' failed to load')); };
         document.head.appendChild(s);
-      });
+      }));
     }
-    return pagesPromise;
+    return scriptCache.get(src);
+  }
+  function loadPages() {
+    if (window.AZZAH_PAGES && window.AZZAH_VIEWS) return Promise.resolve(window.AZZAH_PAGES);
+    return Promise.all([
+      window.AZZAH_PAGES ? null : loadScript('pages.js'),
+      window.AZZAH_VIEWS ? null : loadScript('views.js').catch(() => null),   // without it, pages fall back to the simple layout
+    ]).then(() => window.AZZAH_PAGES);
   }
   let prefetched = false;
   function prefetchPages() {
     if (prefetched) return;
     prefetched = true;
-    (window.requestIdleCallback || ((fn) => setTimeout(fn, 200)))(() => loadPages().catch(() => { prefetched = false; }));
+    (window.requestIdleCallback || ((fn) => setTimeout(fn, 200)))(() => {
+      loadPages().catch(() => { prefetched = false; });
+      const img = new Image();                // the inner-page header photo, so it's ready before the page slides up
+      img.src = $('.sp-bg').getAttribute('src');
+    });
   }
+  // warm the cache as soon as someone heads for the nav or the creative developer pill
+  ['pointerover', 'focusin'].forEach((t) => top.addEventListener(t, () => prefetchPages(), { once: true, passive: true }));
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const safeHref = (h) => (/^\[/.test(h) ? '#' : h);
+  const fallbackTitle = (id) => { const spot = spotById(id); return spot ? titleOf(spot) : id.charAt(0).toUpperCase() + id.slice(1); };
+
+  /* ---------------------------------------------------------------- modal (project / paper details) */
+  let modalReturn = null;
+  let modalClosing = null;
+  function openModal(content, { returnFocus } = {}) {
+    [modalBox, modalScrim].forEach((el) => el.getAnimations().forEach((a) => a.cancel()));
+    modalClosing = null;
+    modalBody.replaceChildren(content);
+    modalReturn = returnFocus || document.activeElement;
+    modalWrap.hidden = false;
+    modalBox.scrollTop = 0;
+    pageLayer.inert = true;
+    modalScrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
+    if (reduced()) {
+      modalBox.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+    } else {                                  // same spring as the lawn's popup cards
+      const n = CARD_SPRING.values.length - 1;
+      modalBox.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
+        { duration: CARD_SPRING.duration, easing: 'linear' });
+      modalBox.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+    }
+    $('.modal-x', modalWrap).focus({ preventScroll: true });
+    Sound.play('pop');
+  }
+  function closeModal({ restoreFocus = true } = {}) {
+    if (modalWrap.hidden) return Promise.resolve();
+    if (modalClosing) return modalClosing;
+    const a = modalBox.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
+      { duration: 120, easing: 'ease-in', fill: 'forwards' });
+    const b = modalScrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
+    modalClosing = Promise.all([a.finished, b.finished]).catch(() => {}).then(() => {
+      if (!modalClosing) return;              // reopened meanwhile
+      modalClosing = null;
+      modalWrap.hidden = true;
+      a.cancel();
+      b.cancel();
+      modalBody.replaceChildren();
+      pageLayer.inert = false;
+      if (restoreFocus && modalReturn && modalReturn.isConnected) modalReturn.focus({ preventScroll: true });
+    });
+    return modalClosing;
+  }
+  $$('[data-modal-close]', modalWrap).forEach((b) => b.addEventListener('click', () => closeModal()));
+  modalWrap.addEventListener('keydown', (e) => {          // keep focus inside the dialog
+    if (e.key !== 'Tab') return;
+    const f = $$('a[href], button:not([tabindex="-1"]), input, textarea, select', modalWrap).filter((el) => !el.disabled && el.offsetParent !== null);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  });
+
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(() => legacyCopy(text));
+    return Promise.resolve(legacyCopy(text));
+  }
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* nothing else to try */ }
+    ta.remove();
+  }
+
+  // What views.js gets to work with.
+  const ui = {
+    esc,
+    reduced,
+    easeOut: EASE_OUT,
+    go: (id) => { location.hash = '#/' + id; },
+    openModal,
+    closeModal,
+    copy: copyText,
+  };
 
   // Pages are built once and reused (memoised).
   const pageCache = new Map();
+  const isViewPage = (id, pages) => !!(pages && pages[id] && pages[id].view && window.AZZAH_VIEWS && window.AZZAH_VIEWS[pages[id].view]);
+  function buildView(id, pages) {
+    const key = 'view:' + id;
+    if (!pageCache.has(key)) pageCache.set(key, window.AZZAH_VIEWS[pages[id].view](pages[id], ui));
+    return pageCache.get(key);
+  }
   function buildPage(id, pages) {
     if (pageCache.has(id)) return pageCache.get(id);
     const spot = spotById(id);
-    const data = (pages && pages[id]) || {
-      kicker: titleOf(spot), title: titleOf(spot), intro: $('.cb-desc', cardOf(spot))?.textContent || '', blocks: [], color: '#E3B23C',
+    const given = pages && pages[id];
+    const data = (given && !given.view) ? given : {
+      kicker: (given && given.title) || fallbackTitle(id), title: (given && given.title) || fallbackTitle(id),
+      intro: (given && given.subtitle) || (spot && $('.cb-desc', cardOf(spot))?.textContent) || '', blocks: [], color: '#E3B23C',
     };
     const blocks = (data.blocks || []).map((b) => {
       const h = b.heading ? `<h2>${esc(b.heading)}</h2>` : '';
@@ -535,14 +654,40 @@
     mascotReady = true;
   }
 
+  // Put a page into the layer: the Gemini-style layout (header photo, nav, footer) when views.js
+  // has a renderer for it, otherwise the original simple page. Returns what to focus and announce.
+  const spNavLinks = $$('[data-nav]', spPage);
+  function mount(id, pages) {
+    if (isViewPage(id, pages)) {
+      const data = pages[id];
+      classicPage.hidden = true;
+      spPage.hidden = false;
+      spTitle.textContent = data.title;
+      spSub.textContent = data.subtitle || '';
+      spMain.replaceChildren(buildView(id, pages));
+      spNavLinks.forEach((a) => {
+        if (a.dataset.nav === id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      });
+      return { kind: 'sp', main: spMain, title: data.title };
+    }
+    spPage.hidden = true;
+    classicPage.hidden = false;
+    pageMain.replaceChildren(buildPage(id, pages));
+    ensureMascot();
+    return { kind: 'classic', main: pageMain, title: $('.pg-title', pageMain).textContent };
+  }
+
   /* ==================================================================== router + zoom transition */
   let currentPage = null;
+  let currentKind = null;
   let originId = null;
   let pageOpen = false;
   let transitioning = false;
   let pendingRoute = false;
   let nextZoom = true;
   let held = [];                          // animations holding the zoomed state while a page is open
+  let zoomed = false;                     // is the (hidden) lawn held at 3x behind the page?
+  let lawnReturn = null;                  // where focus goes back to when a page had no character
   const baseTitle = document.title;
 
   function go(id, { zoom = true } = {}) {
@@ -563,6 +708,7 @@
     const zoom = nextZoom;
     nextZoom = true;
     closeSheet({ restoreFocus: false });
+    closeModal({ restoreFocus: false });
     setMenu(false);
     const fromList = !list.hidden;
     setList(false);
@@ -580,10 +726,12 @@
   window.addEventListener('hashchange', onRoute);
 
   function zoomOrigin(spot) {
+    const s = scene.getBoundingClientRect();
+    const k = s.width / (scene.offsetWidth || s.width || 1);   // the scene may be scaled (list view), origins are unscaled
+    if (!spot) return `${(s.width / 2 / k).toFixed(1)}px ${(s.height / 2 / k).toFixed(1)}px`;
     const hit = $('.hit', spot) || figOf(spot);
     const r = hit.getBoundingClientRect();
-    const s = scene.getBoundingClientRect();
-    return `${(r.left + r.width / 2 - s.left).toFixed(1)}px ${(r.top + r.height / 2 - s.top).toFixed(1)}px`;
+    return `${((r.left + r.width / 2 - s.left) / k).toFixed(1)}px ${((r.top + r.height / 2 - s.top) / k).toFixed(1)}px`;
   }
   function baseTransform() {
     scene.getAnimations().forEach((a) => a.cancel());
@@ -591,80 +739,96 @@
     return t && t !== 'none' ? t + ' ' : '';
   }
   function setLawnInert(on) { [scene, top, bottom].forEach((el) => { el.inert = on; }); }
+  function finishOpen(id, m) {
+    currentPage = id;
+    currentKind = m.kind;
+    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
+    document.title = `${m.title} — Azzah`;
+    m.main.focus({ preventScroll: true });
+    announce(`${m.title} page`);
+  }
 
   async function enterPage(id, zoom) {
     const spot = spotById(id);
-    originId = id;
+    originId = spot ? id : null;
+    const a = document.activeElement;
+    lawnReturn = a && a !== document.body && lawn.contains(a) && !pageLayer.contains(a) ? a : null;
     const pagesP = loadPages().catch(() => null);
-    const motion = zoom && !reduced();
+    const motion = zoom && !!spot && !reduced();    // zoom into the character; pages without one just fade
     root.classList.add('zooming');
     scene.style.transformOrigin = zoomOrigin(spot);
     const base = baseTransform();
-    scene.style.willChange = 'transform';
 
-    held.forEach((a) => a.cancel());
+    held.forEach((anim) => anim.cancel());
     held = [];
+    zoomed = false;
     if (motion) {
+      scene.style.willChange = 'transform';
       held.push(scene.animate([{ transform: base + 'scale(1)' }, { transform: base + 'scale(3)' }],
         { duration: 520, easing: EASE_IN_OUT, fill: 'forwards' }));
       held.push(wash.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 380, delay: 140, easing: EASE_IN_OUT, fill: 'forwards' }));
+      zoomed = true;
     } else {
-      if (!reduced()) held.push(scene.animate([{ transform: base + 'scale(3)' }], { duration: 0, fill: 'forwards' }));
       held.push(wash.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: 'ease-out', fill: 'forwards' }));
     }
     held.push(...[top, bottom].map((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' })));
 
     const pages = await pagesP;
-    pageMain.replaceChildren(buildPage(id, pages));
-    ensureMascot();
+    const m = mount(id, pages);
     pageLayer.scrollTop = 0;
     pageLayer.hidden = false;
     const pageIn = pageLayer.animate(
       motion ? [{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'none' }] : [{ opacity: 0 }, { opacity: 1 }],
       { duration: motion ? 300 : 260, delay: motion ? 400 : 120, easing: EASE_IN_OUT, fill: 'backwards' });
-    await Promise.all([pageIn.finished, ...held.map((a) => a.finished)]);
+    await Promise.all([pageIn.finished, ...held.map((anim) => anim.finished)]);
 
+    // Entered without the zoom (list view, or no motion yet): aim the hidden lawn at the character now,
+    // under the opaque wash, so going back still zooms out of them.
+    if (!zoomed && spot && !reduced()) {
+      held.push(scene.animate([{ transform: base + 'scale(3)' }], { duration: 0, fill: 'forwards' }));
+      zoomed = true;
+    }
     scene.style.willChange = '';
     scene.style.visibility = 'hidden';
     root.classList.remove('zooming');
     root.classList.add('page-open');
     setLawnInert(true);
-    currentPage = id;
     pageOpen = true;
     updatePause();
-    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
-    document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
-    pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spot)} page`);
+    finishOpen(id, m);
   }
 
   async function swapPage(id) {
     const pages = await loadPages().catch(() => null);
-    const out = pageMain.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
-    await out.finished;
-    pageMain.replaceChildren(buildPage(id, pages));
+    const sameLayout = currentKind === 'sp' && isViewPage(id, pages);
+    // between two Gemini-style pages only the title and body change; otherwise the whole page cross-fades
+    const outEls = sameLayout ? [spIntro, spMain] : [currentKind === 'sp' ? spPage : classicPage];
+    const outs = outEls.map((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in', fill: 'forwards' }));
+    await Promise.all(outs.map((anim) => anim.finished));
+    const m = mount(id, pages);
     pageLayer.scrollTop = 0;
-    out.cancel();
-    await pageMain.animate([{ opacity: 0, transform: reduced() ? 'none' : 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 240, easing: EASE_OUT }).finished;
-    currentPage = id;
-    originId = id;
-    // keep the zoom aimed at the new character for the trip back
-    scene.style.visibility = '';
-    held.forEach((a) => a.cancel());
-    scene.style.transformOrigin = zoomOrigin(spotById(id));
-    held = [scene.animate([{ transform: baseTransform() + (reduced() ? 'scale(1)' : 'scale(3)') }], { duration: 0, fill: 'forwards' }),
-      wash.animate([{ opacity: 1 }], { duration: 0, fill: 'forwards' }),
-      ...[top, bottom].map((el) => el.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' }))];
-    scene.style.visibility = 'hidden';
-    if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
-    document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
-    pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spotById(id))} page`);
+    outs.forEach((anim) => anim.cancel());
+    const inEls = sameLayout ? [spIntro, spMain] : [m.kind === 'sp' ? spPage : classicPage];
+    await Promise.all(inEls.map((el) => el.animate([{ opacity: 0, transform: reduced() ? 'none' : 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 240, easing: EASE_OUT }).finished));
+    // keep the zoom aimed at the new character for the trip back (a page with no character keeps the last one)
+    const spot = spotById(id);
+    if (spot) {
+      originId = id;
+      scene.style.visibility = '';
+      held.forEach((anim) => anim.cancel());
+      scene.style.transformOrigin = zoomOrigin(spot);
+      held = [scene.animate([{ transform: baseTransform() + (reduced() ? 'scale(1)' : 'scale(3)') }], { duration: 0, fill: 'forwards' }),
+        wash.animate([{ opacity: 1 }], { duration: 0, fill: 'forwards' }),
+        ...[top, bottom].map((el) => el.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' }))];
+      zoomed = !reduced();
+      scene.style.visibility = 'hidden';
+    }
+    finishOpen(id, m);
   }
 
   async function exitPage() {
-    const spot = spotById(originId || currentPage);
+    const spot = spotById(originId);
     const motion = !reduced();
     scene.style.visibility = '';
     setLawnInert(false);
@@ -673,35 +837,42 @@
     pageOpen = false;
     updatePause();
 
-    const scaleNow = held.length && motion ? 3 : 1;
+    const scaleNow = zoomed && motion ? 3 : 1;
     const base = baseTransform();             // also cancels the held scene animation
-    scene.style.willChange = 'transform';
+    if (scaleNow !== 1) scene.style.willChange = 'transform';
     const anims = [
       pageLayer.animate(motion ? [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(24px)' }] : [{ opacity: 1 }, { opacity: 0 }],
         { duration: 220, easing: EASE_IN_OUT, fill: 'forwards' }),
-      scene.animate([{ transform: base + `scale(${scaleNow})` }, { transform: base + 'scale(1)' }],
-        { duration: motion ? 520 : 1, delay: motion ? 180 : 0, easing: EASE_IN_OUT, fill: 'backwards' }),
       wash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion ? 420 : 260, delay: motion ? 260 : 120, easing: EASE_IN_OUT, fill: 'both' }),
       ...[top, bottom].map((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: motion ? 480 : 200, easing: 'ease-out', fill: 'both' })),
     ];
-    held.forEach((a) => a.cancel());
+    if (scaleNow !== 1) {
+      anims.push(scene.animate([{ transform: base + `scale(${scaleNow})` }, { transform: base + 'scale(1)' }],
+        { duration: 520, delay: 180, easing: EASE_IN_OUT, fill: 'backwards' }));
+    }
+    held.forEach((anim) => anim.cancel());
     held = [];
-    await Promise.all(anims.map((a) => a.finished));
+    zoomed = false;
+    await Promise.all(anims.map((anim) => anim.finished));
     pageLayer.hidden = true;
-    anims.forEach((a) => a.cancel());
+    anims.forEach((anim) => anim.cancel());
     scene.style.willChange = '';
     scene.style.transformOrigin = '';
     root.classList.remove('zooming');
     currentPage = null;
+    currentKind = null;
     document.title = baseTitle;
-    if (spot) figOf(spot).focus({ preventScroll: true });
+    const back = spot ? figOf(spot) : (lawnReturn && lawnReturn.isConnected && lawnReturn.offsetParent !== null ? lawnReturn : logo);
+    lawnReturn = null;
+    if (back) back.focus({ preventScroll: true });
     announce('Back on the lawn');
   }
 
   /* ==================================================================== Escape */
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!sheetWrap.hidden) closeSheet();
+    if (!modalWrap.hidden) closeModal();
+    else if (!sheetWrap.hidden) closeSheet();
     else if (lawn.classList.contains('nav-open')) { setMenu(false); menuBtn && menuBtn.focus(); }
     else if (!list.hidden) setList(false);
     else if (activeSpot) { const f = figOf(activeSpot); deactivate(activeSpot); f.focus(); }
@@ -719,7 +890,7 @@
     }
     const anims = [];
     const add = (el, keyframes, opts) => { if (el) anims.push(el.animate(keyframes, { fill: 'both', easing: EASE_OUT, ...opts })); };
-    $$('.grass-layer').forEach((el) => add(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }));
+    $$('.grass-layer, .edge').forEach((el) => add(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' }));
     $$('.shadows-in').forEach((el) => add(el, [{ opacity: 0, transform: 'translate(70px,30px)' }, { opacity: 1, transform: 'translate(0,0)' }], { duration: 650, delay: 300 }));
     $$('.canopy').forEach((el) => add(el, [{ opacity: 0, transform: 'translate(30px,-24px)' }, { opacity: 1, transform: 'none' }], { duration: 650, delay: 300 }));
     const ordered = spots.slice().sort((a, b) => {
@@ -745,7 +916,7 @@
 
   /* ==================================================================== pause when hidden / off-screen */
   let lawnVisible = true;
-  function updatePause() { lawn.classList.toggle('is-paused', !lawnVisible || pageOpen); }
+  function updatePause() { lawn.classList.toggle('is-paused', !lawnVisible || pageOpen || !list.hidden); }
   document.addEventListener('visibilitychange', () => root.classList.toggle('is-hidden', document.hidden));
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
@@ -809,7 +980,7 @@
     if (!t) return;
     const fig = t.closest('.fig');
     if (fig && !isMobile() && !pageOpen) setCursorMode('hot', fig.dataset.label);
-    else if (t.closest('input, textarea')) cursor.classList.remove('is-visible');
+    else if (t.closest('input, textarea, select')) cursor.classList.remove('is-visible');
     else {
       cursor.classList.add('is-visible');
       setCursorMode(t.closest('a[href], button, label, summary') ? 'link' : 'dot');

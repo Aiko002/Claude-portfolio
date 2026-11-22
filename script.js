@@ -1,7 +1,7 @@
 /* Azzah — park lawn portfolio
  * Motion + interaction layer (vanilla JS, Web Animations API — no build step):
- *   zoom page transitions & lazy inner pages, spring popup cards with auto-flip,
- *   first-visit entrance, Day / Golden / Night moods, list view, mobile sheets & menu,
+ *   zoom page transitions & lazy inner pages, spring speech bubbles over the social people,
+ *   first-visit entrance, Day / Golden / Night moods, hamburger menu,
  *   spring-smoothed cursor, optional Web Audio sounds, pause-when-hidden.
  */
 (() => {
@@ -9,7 +9,6 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
   const root = document.documentElement;
   const lawn = $('#lawn');
@@ -18,9 +17,6 @@
   const bottom = $('.bottom');
   const spots = $$('.spot');
   const list = $('#section-list');
-  const sheetWrap = $('#sheet-wrap');
-  const sheetBody = $('#sheet-body');
-  const sheetTitle = $('#sheet-title');
   const wash = $('.wash');
   const pageLayer = $('#page-layer');
   const pageMain = $('#page-main');
@@ -35,11 +31,18 @@
 
   const EASE_IN_OUT = 'cubic-bezier(.65,0,.35,1)';
   const EASE_OUT = 'cubic-bezier(.2,.8,.2,1)';
-  const PAGE_IDS = spots.map((s) => s.dataset.id);
+  // Inner pages, and the person on the lawn each page zooms out to on the way back.
+  const PAGE_NAME = { about: 'About me', projects: 'Projects', research: 'Research', contact: 'Contact' };
+  const PAGE_ORIGIN = { about: 'about', projects: 'projects', research: 'papers', contact: 'contact' };
+  const PAGE_IDS = Object.keys(PAGE_NAME);
   const spotById = (id) => spots.find((s) => s.dataset.id === id);
+  const originSpot = (pageId) => spotById(PAGE_ORIGIN[pageId]);
   const figOf = (spot) => $('.fig', spot);
-  const cardOf = (spot) => $('.card', spot);
-  const titleOf = (spot) => $('.fig .sr-only', spot).textContent;
+  const bubbleOf = (spot) => $('.bubble', spot);
+
+  // Social links come from links.js, so they only need changing in one place.
+  const LINKS = window.AZZAH_LINKS || {};
+  $$('[data-link]').forEach((a) => { if (LINKS[a.dataset.link]) a.href = LINKS[a.dataset.link]; });
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -50,9 +53,6 @@
     set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } },
   };
   const announce = (text) => { announcer.textContent = ''; setTimeout(() => { announcer.textContent = text; }, 30); };
-
-  let lastPointerType = 'mouse';
-  window.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType; }, { capture: true, passive: true });
 
   /* ==================================================================== sound */
   const Sound = (() => {
@@ -254,85 +254,33 @@
     announce(`Light set to ${MOOD_LABEL[next]}`);
   }));
 
-  /* ==================================================================== popup cards (desktop) */
+  /* ==================================================================== speech bubbles (desktop hover)
+   * Only the four social people have a bubble. Everyone else still lifts and animates on hover.
+   * The bubble sits above the person's head (CSS places it from --bx / --by) and springs in. */
   let activeSpot = null;
   let closeTimer = 0;
 
-  function placeCard(spot) {
-    const card = cardOf(spot);
-    const hit = $('.hit', spot) || figOf(spot);
-    card.classList.add('is-placed');
-    card.style.left = '0px';
-    card.style.top = '0px';
-    const f = hit.getBoundingClientRect();
-    const s = spot.getBoundingClientRect();
-    const cw = card.offsetWidth;
-    const ch = card.offsetHeight;
-    const vw = root.clientWidth;
-    const vh = window.innerHeight;
-    const M = 12;
-    const GAP = 12;
-    const safeTop = 96;       // clear of the nav
-    const safeBottom = 84;    // clear of the footer
-    const room = { right: vw - M - f.right, left: f.left - M, top: f.top - safeTop, bottom: vh - safeBottom - f.bottom };
-    const need = { right: cw + GAP, left: cw + GAP, top: ch + GAP, bottom: ch + GAP };
-    const m = card.className.match(/card--(right|left|below|above)/);
-    const preferred = m ? ({ below: 'bottom', above: 'top' }[m[1]] || m[1]) : 'right';
-    const opposite = { right: 'left', left: 'right', top: 'bottom', bottom: 'top' };
-    const order = [preferred, opposite[preferred], 'right', 'left', 'bottom', 'top'].filter((v, i, a) => a.indexOf(v) === i);
-    const side = order.find((sd) => room[sd] >= need[sd]) ||
-      order.reduce((best, sd) => (room[sd] - need[sd] > room[best] - need[best] ? sd : best), order[0]);
-
-    const cx = f.left + f.width / 2;
-    const cy = f.top + f.height / 2;
-    let x;
-    let y;
-    if (side === 'right' || side === 'left') {
-      x = side === 'right' ? f.right + GAP : f.left - GAP - cw;
-      y = clamp(cy - ch * 0.4, safeTop, vh - safeBottom - ch);
-    } else {
-      y = side === 'bottom' ? f.bottom + GAP : f.top - GAP - ch;
-      x = clamp(cx - cw / 2, M, vw - M - cw);
-    }
-    x = clamp(x, M, Math.max(M, vw - M - cw));
-    y = clamp(y, M, Math.max(M, vh - M - ch));
-    card.style.left = Math.round(x - s.left) + 'px';
-    card.style.top = Math.round(y - s.top) + 'px';
-    card.dataset.side = side;
-    if (side === 'right' || side === 'left') {
-      const ay = clamp(cy - y, 18, ch - 18);
-      card.style.setProperty('--ay', ay + 'px');
-      return `${side === 'right' ? '0' : '100%'} ${ay}px`;
-    }
-    const ax = clamp(cx - x, 18, cw - 18);
-    card.style.setProperty('--ax', ax + 'px');
-    return `${ax}px ${side === 'bottom' ? '0' : '100%'}`;
-  }
-
-  function openCard(spot) {
-    const card = cardOf(spot);
-    card.getAnimations().forEach((a) => a.cancel());
-    const origin = placeCard(spot);
+  function openBubble(spot) {
+    const bubble = bubbleOf(spot);
+    if (!bubble) return;
+    bubble.getAnimations().forEach((a) => a.cancel());
     spot.classList.add('is-open');
-    figOf(spot).setAttribute('aria-expanded', 'true');
     if (reduced()) {
-      card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+      bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
       return;
     }
-    card.style.transformOrigin = origin;
     const n = CARD_SPRING.values.length - 1;
-    card.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
+    bubble.animate(CARD_SPRING.values.map((v, i) => ({ transform: `scale(${v.toFixed(4)})`, offset: i / n })),
       { duration: CARD_SPRING.duration, easing: 'linear' });
-    card.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+    bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
   }
 
-  function closeCard(spot, immediate) {
-    figOf(spot).setAttribute('aria-expanded', 'false');
+  function closeBubble(spot, immediate) {
     if (!spot.classList.contains('is-open')) return;
-    const card = cardOf(spot);
-    card.getAnimations().forEach((a) => a.cancel());
+    const bubble = bubbleOf(spot);
+    bubble.getAnimations().forEach((a) => a.cancel());
     if (immediate) { spot.classList.remove('is-open'); return; }
-    const a = card.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
+    const a = bubble.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: reduced() ? 'scale(1)' : 'scale(.96)' }],
       { duration: 120, easing: 'ease-in' });
     a.onfinish = () => { if (!spot.classList.contains('is-active')) spot.classList.remove('is-open'); };
   }
@@ -344,7 +292,7 @@
     activeSpot = spot;
     spot.classList.add('is-active');
     scene.classList.add('has-active');
-    if (!isMobile()) openCard(spot);
+    if (!isMobile()) openBubble(spot);
     if (sound) playOpen(spot.dataset.id);
     prefetchPages();
   }
@@ -352,7 +300,7 @@
   function deactivate(spot, immediate = false) {
     if (!spot) return;
     spot.classList.remove('is-active');
-    closeCard(spot, immediate);
+    closeBubble(spot, immediate);
     if (activeSpot === spot) {
       activeSpot = null;
       scene.classList.remove('has-active');
@@ -368,7 +316,7 @@
     }, 150);
   }
 
-  // Hover: delegate so only the figure's hit area and its card count as "on" the person.
+  // Hover: delegate so only the figure's hit area and its speech bubble count as "on" the person.
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType === 'touch') return;
     const t = e.target instanceof Element ? e.target : null;
@@ -379,7 +327,7 @@
   });
   root.addEventListener('pointerleave', scheduleClose);
 
-  // Keyboard focus opens the card too; touch/mouse focus does not.
+  // Keyboard focus opens the bubble too; touch/mouse focus does not.
   document.addEventListener('focusin', (e) => {
     const t = e.target;
     const spot = t.closest && t.closest('.spot');
@@ -394,52 +342,16 @@
     deactivate(activeSpot);
   });
 
-  /* ==================================================================== bottom sheet (mobile + any touch) */
-  let sheetReturnFocus = null;
-  function openSheet(spot) {
-    deactivate(activeSpot, true);
-    sheetBody.innerHTML = cardOf(spot).innerHTML;
-    sheetTitle.textContent = titleOf(spot);
-    sheetReturnFocus = figOf(spot);
-    sheetWrap.hidden = false;
-    document.body.style.overflow = 'hidden';
-    $('.sheet-x', sheetWrap).focus({ preventScroll: true });
-    playOpen(spot.dataset.id);
-  }
-  function closeSheet({ restoreFocus = true } = {}) {
-    if (sheetWrap.hidden) return;
-    sheetWrap.hidden = true;
-    sheetBody.innerHTML = '';
-    document.body.style.overflow = '';
-    if (restoreFocus && sheetReturnFocus) sheetReturnFocus.focus({ preventScroll: true });
-  }
-  $$('[data-sheet-close]').forEach((b) => b.addEventListener('click', () => closeSheet()));
-  sheetWrap.addEventListener('keydown', (e) => {          // keep focus inside the sheet
-    if (e.key !== 'Tab') return;
-    const f = $$('a[href], button:not([tabindex="-1"])', sheetWrap);
-    if (!f.length) return;
-    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-  });
-
-  /* ==================================================================== clicking a person */
-  spots.forEach((spot) => {
-    figOf(spot).addEventListener('click', () => {
-      if (isMobile() || lastPointerType === 'touch') openSheet(spot);
-      else go(spot.dataset.id);
-    });
-  });
-
-  /* ==================================================================== list view + mobile menu */
+  /* ==================================================================== hamburger menu (the old list view) */
   const listToggles = $$('[data-list-toggle]');
+  const visibleToggle = () => listToggles.find((b) => b.offsetParent !== null);
   function setList(open) {
     if (open === !list.hidden) return;
     list.hidden = !open;
     lawn.classList.toggle('list-open', open);
-    listToggles.forEach((b) => b.setAttribute('aria-pressed', String(open)));
+    listToggles.forEach((b) => b.setAttribute('aria-expanded', String(open)));
     if (open) {
       deactivate(activeSpot, true);
-      setMenu(false);
       const first = $('.li-row', list);
       if (first) first.focus({ preventScroll: true });
     }
@@ -447,23 +359,25 @@
   listToggles.forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); setList(list.hidden); }));
   $('[data-list-close]').addEventListener('click', () => {
     setList(false);
-    const visible = listToggles.find((b) => b.offsetParent !== null);
+    const visible = visibleToggle();
     if (visible) visible.focus();
   });
   $('[data-open-list]').addEventListener('click', (e) => { e.preventDefault(); setList(true); });
-  $$('[data-open]', list).forEach((row) => row.addEventListener('click', () => go(row.dataset.open, { zoom: false })));
+  mqMobile.addEventListener('change', () => deactivate(activeSpot, true));
 
-  const menuBtn = $('[data-menu-toggle]');
-  function setMenu(open) {
-    lawn.classList.toggle('nav-open', open);
-    if (menuBtn) menuBtn.setAttribute('aria-expanded', String(open));
-  }
-  if (menuBtn) menuBtn.addEventListener('click', (e) => { e.stopPropagation(); setMenu(!lawn.classList.contains('nav-open')); });
-  document.addEventListener('click', (e) => {
-    if (lawn.classList.contains('nav-open') && !e.target.closest('#primary-nav')) setMenu(false);
+  /* ==================================================================== opening pages
+   * Nav links and menu rows fade the page in (as the list view did). The Contact child zooms in
+   * (its link is a plain #/contact hash). The GitHub / LinkedIn / Instagram people are normal links. */
+  let opener = null;                       // where focus goes back to after "Back to the lawn"
+  $$('[data-open]').forEach((el) => el.addEventListener('click', (e) => {
+    e.preventDefault();
+    opener = el;
+    go(el.dataset.open, { zoom: false });
+  }));
+  spots.forEach((spot) => {
+    const fig = figOf(spot);
+    if (fig.matches('a[href^="#/"]')) fig.addEventListener('click', () => { opener = fig; });
   });
-  $$('#primary-nav a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
-  mqMobile.addEventListener('change', () => { deactivate(activeSpot, true); closeSheet({ restoreFocus: false }); setMenu(false); });
 
   /* ==================================================================== inner pages (lazy) */
   let pagesPromise = null;
@@ -495,9 +409,8 @@
   const pageCache = new Map();
   function buildPage(id, pages) {
     if (pageCache.has(id)) return pageCache.get(id);
-    const spot = spotById(id);
     const data = (pages && pages[id]) || {
-      kicker: titleOf(spot), title: titleOf(spot), intro: $('.cb-desc', cardOf(spot))?.textContent || '', blocks: [], color: '#E3B23C',
+      kicker: PAGE_NAME[id], title: PAGE_NAME[id], intro: '', blocks: [], color: '#E3B23C',
     };
     const blocks = (data.blocks || []).map((b) => {
       const h = b.heading ? `<h2>${esc(b.heading)}</h2>` : '';
@@ -526,7 +439,7 @@
   let mascotReady = false;
   function ensureMascot() {                 // the small child peeks from the page header (cloned once)
     if (mascotReady) return;
-    const svg = $('.spot[data-id="contact"] .fig svg');
+    const svg = $('.spot[data-id="contact"] .fig > svg');
     if (svg) {
       const clone = svg.cloneNode(true);
       clone.querySelectorAll('.hit').forEach((n) => n.remove());
@@ -562,8 +475,6 @@
     transitioning = true;
     const zoom = nextZoom;
     nextZoom = true;
-    closeSheet({ restoreFocus: false });
-    setMenu(false);
     const fromList = !list.hidden;
     setList(false);
     deactivate(activeSpot, true);
@@ -593,7 +504,7 @@
   function setLawnInert(on) { [scene, top, bottom].forEach((el) => { el.inert = on; }); }
 
   async function enterPage(id, zoom) {
-    const spot = spotById(id);
+    const spot = originSpot(id);
     originId = id;
     const pagesP = loadPages().catch(() => null);
     const motion = zoom && !reduced();
@@ -635,7 +546,7 @@
     if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
     document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
     pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spot)} page`);
+    announce(`${PAGE_NAME[id]} page`);
   }
 
   async function swapPage(id) {
@@ -652,7 +563,7 @@
     // keep the zoom aimed at the new character for the trip back
     scene.style.visibility = '';
     held.forEach((a) => a.cancel());
-    scene.style.transformOrigin = zoomOrigin(spotById(id));
+    scene.style.transformOrigin = zoomOrigin(originSpot(id));
     held = [scene.animate([{ transform: baseTransform() + (reduced() ? 'scale(1)' : 'scale(3)') }], { duration: 0, fill: 'forwards' }),
       wash.animate([{ opacity: 1 }], { duration: 0, fill: 'forwards' }),
       ...[top, bottom].map((el) => el.animate([{ opacity: 0 }], { duration: 0, fill: 'forwards' }))];
@@ -660,11 +571,11 @@
     if (location.hash !== '#/' + id) history.replaceState(null, '', '#/' + id);
     document.title = `${$('.pg-title', pageMain).textContent} — Azzah`;
     pageMain.focus({ preventScroll: true });
-    announce(`${titleOf(spotById(id))} page`);
+    announce(`${PAGE_NAME[id]} page`);
   }
 
   async function exitPage() {
-    const spot = spotById(originId || currentPage);
+    const spot = originSpot(originId || currentPage);
     const motion = !reduced();
     scene.style.visibility = '';
     setLawnInert(false);
@@ -694,16 +605,18 @@
     root.classList.remove('zooming');
     currentPage = null;
     document.title = baseTitle;
-    if (spot) figOf(spot).focus({ preventScroll: true });
+    // focus goes back to whatever opened the page (nav link, Contact child), else the menu button
+    const fig = spot && figOf(spot);
+    const back = (opener && opener.offsetParent !== null && opener) || visibleToggle() || (fig && fig.matches('a') && fig);
+    if (back) back.focus({ preventScroll: true });
+    opener = null;
     announce('Back on the lawn');
   }
 
   /* ==================================================================== Escape */
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!sheetWrap.hidden) closeSheet();
-    else if (lawn.classList.contains('nav-open')) { setMenu(false); menuBtn && menuBtn.focus(); }
-    else if (!list.hidden) setList(false);
+    if (!list.hidden) setList(false);
     else if (activeSpot) { const f = figOf(activeSpot); deactivate(activeSpot); f.focus(); }
     else if (currentPage) location.hash = '#/';
   });
@@ -808,7 +721,7 @@
     const t = e.target instanceof Element ? e.target : null;
     if (!t) return;
     const fig = t.closest('.fig');
-    if (fig && !isMobile() && !pageOpen) setCursorMode('hot', fig.dataset.label);
+    if (fig && fig.dataset.label && !isMobile() && !pageOpen) setCursorMode('hot', fig.dataset.label);
     else if (t.closest('input, textarea')) cursor.classList.remove('is-visible');
     else {
       cursor.classList.add('is-visible');
